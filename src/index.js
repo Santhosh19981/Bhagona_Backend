@@ -1,37 +1,68 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const bodyParser = require('body-parser');
-const usersRouter = require('./routes/users');
-const eventsRouter = require('./routes/events');
-const servicesRouter = require('./routes/services');
-const bookingsRouter = require('./routes/bookings');
-const menuRouter = require('./routes/menuItems');
-const chefsRouter = require('./routes/chefs');
-const vendorsRouter = require('./routes/vendors');
-const reviewsRouter = require('./routes/reviews');
-const ordersRouter = require('./routes/orders');
-const paymentsRouter = require('./routes/payments');
-const cors = require('cors');
-;
+const express = require("express");
+const dotenv = require("dotenv");
+const cors = require("cors");
+
+// Routers
+const usersRouter = require("./routes/users");
+const addUserRouter = require("./routes/addUser");
+const eventsRouter = require("./routes/events");
+const servicesRouter = require("./routes/services");
+const bookingsRouter = require("./routes/bookings");
+const menuRouter = require("./routes/menuItems");
+const chefsRouter = require("./routes/chefs");
+const vendorsRouter = require("./routes/vendors");
+const reviewsRouter = require("./routes/reviews");
+const ordersRouter = require("./routes/orders");
+const paymentsRouter = require("./routes/payments");
+const loginRouter = require("./routes/login");
 
 dotenv.config();
 const app = express();
-app.use(cors())
-app.use(bodyParser.json());
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/uploads", express.static("uploads"));
+
+// CORS
+app.use(
+  cors({
+    origin: ["http://localhost:4200"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
+
+// Test route
+app.get("/", (req, res) => {
+  res.status(200).json({ message: "Backend connected successfully!" });
+});
+
+// Routes
+app.use("/users", usersRouter);
+app.use("/addUser", addUserRouter);
+app.use("/events", eventsRouter);
+app.use("/services", servicesRouter);
+app.use("/login", loginRouter);
+app.use("/bookings", bookingsRouter);
+app.use("/menu-items", menuRouter);
+app.use("/chefs", chefsRouter);
+app.use("/vendors", vendorsRouter);
+app.use("/reviews", reviewsRouter);
+app.use("/orders", ordersRouter);
+app.use("/payments", paymentsRouter);
+
+// 404 Not Found
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err.message);
+  res.status(500).json({ error: err.message || "Internal Server Error" });
+});
 
 const PORT = process.env.PORT || 3000;
-
-app.use('/users', usersRouter);
-app.use('/events', eventsRouter);
-app.use('/services', servicesRouter);
-app.use('/bookings', bookingsRouter);
-app.use('/menu-items', menuRouter);
-app.use('/chefs', chefsRouter);
-app.use('/vendors', vendorsRouter);
-app.use('/reviews', reviewsRouter);
-app.use('/orders', ordersRouter);
-app.use('/payments', paymentsRouter);
-
-app.get('/', (req, res) => res.json({ service: 'bhagona-backend-v3', status: 'ok' }));
-
-app.listen(PORT, () => console.log(`Bhagona backend v3 running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
