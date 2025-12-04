@@ -175,7 +175,7 @@ router.get("/filter", async (req, res) => {
   } catch (err) {
     console.error("❌ FILTER menu items error:", err);
     res.status(500).json({
-      status: "error",
+      status: "error", 
       message: "Server error",
     });
   }

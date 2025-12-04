@@ -7,6 +7,7 @@ const usersRouter = require("./routes/users");
 const addUserRouter = require("./routes/addUser");
 const eventsRouter = require("./routes/events");
 const servicesRouter = require("./routes/services");
+const serviceItemsRouter = require("./routes/service_items");
 const bookingsRouter = require("./routes/bookings");
 const menuRouter = require("./routes/menuItems");
 const chefsRouter = require("./routes/chefs");
@@ -15,6 +16,7 @@ const reviewsRouter = require("./routes/reviews");
 const ordersRouter = require("./routes/orders");
 const paymentsRouter = require("./routes/payments");
 const loginRouter = require("./routes/login");
+const approvalsRouter = require("./routes/approvals");
 
 dotenv.config();
 const app = express();
@@ -44,6 +46,7 @@ app.use("/users", usersRouter);
 app.use("/addUser", addUserRouter);
 app.use("/events", eventsRouter);
 app.use("/services", servicesRouter);
+app.use("/service-items", serviceItemsRouter);
 app.use("/login", loginRouter);
 app.use("/bookings", bookingsRouter);
 app.use("/menu-items", menuRouter);
@@ -52,6 +55,7 @@ app.use("/vendors", vendorsRouter);
 app.use("/reviews", reviewsRouter);
 app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
+app.use("/approvals", approvalsRouter);
 
 // 404 Not Found
 app.use((req, res) => {
