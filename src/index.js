@@ -26,7 +26,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/uploads", express.static("uploads"));
+// Temporarily disabled for Vercel (read-only filesystem)
+// app.use("/uploads", express.static("uploads"));
 
 // CORS
 app.use(
