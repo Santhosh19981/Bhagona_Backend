@@ -4,14 +4,21 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 
-// ---------------------- IMAGE UPLOAD CONFIG ----------------------
+// ---------------------- IMAGE UPLOAD CONFIG ----------------------// Image upload config
+// Use /tmp on Vercel (writable), ./uploads locally
+const uploadDir = process.env.VERCEL ? "/tmp/uploads/menu_items/" : "./uploads/menu_items/";
 const storage = multer.diskStorage({
-  destination: "./uploads/menu_items/",
+  destination: (req, file, cb) => {
+    const fs = require('fs');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
-
 const upload = multer({ storage });
 
 // ---------------------- GET ALL MENU ITEMS ----------------------
@@ -175,7 +182,7 @@ router.get("/filter", async (req, res) => {
   } catch (err) {
     console.error("❌ FILTER menu items error:", err);
     res.status(500).json({
-      status: "error", 
+      status: "error",
       message: "Server error",
     });
   }

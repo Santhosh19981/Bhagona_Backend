@@ -4,9 +4,17 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 
-// ---------------------- IMAGE UPLOAD CONFIG ----------------------
+// ---------------------- IMAGE UPLOAD CONFIG ----------------------// Image upload config
+// Use /tmp on Vercel (writable), ./uploads locally   
+const uploadDir = process.env.VERCEL ? "/tmp/uploads/services/" : "./uploads/services/";
 const storage = multer.diskStorage({
-  destination: "./uploads/services/",
+  destination: (req, file, cb) => {
+    const fs = require('fs');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   },
