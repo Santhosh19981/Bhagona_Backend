@@ -9,7 +9,7 @@ router.get("/all", async (req, res) => {
   const query = `
     SELECT id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
     FROM Users
-    WHERE role = 'chef' OR role = 'vendor'
+    WHERE role = '2' OR role = '3'
   `;
 
   try {
@@ -36,7 +36,7 @@ router.get("/pending", async (req, res) => {
   const query = `
     SELECT id, name, email, role, mobile, experience, businessname, isapproved 
     FROM Users
-    WHERE (role = 'chef' OR role = 'vendor') AND isapproved = 0
+    WHERE (role = '2' OR role = '3') AND isapproved = 0
   `;
 
   try {
@@ -57,13 +57,13 @@ router.get("/pending", async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// GET ONLY APPROVED USERS
+// GET ONLY APPROVED PARTNERS
 // -------------------------------------------------------------
 router.get("/approved", async (req, res) => {
   const query = `
     SELECT id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
     FROM Users
-    WHERE (role = 'chef' OR role = 'vendor') AND isapproved = 1
+    WHERE (role = '2' OR role = '3') AND isapproved = 1
   `;
 
   try {
@@ -90,7 +90,7 @@ router.get("/rejected", async (req, res) => {
   const query = `
     SELECT id, name, email, role, mobile, experience, businessname, isapproved 
     FROM Users
-    WHERE (role = 'chef' OR role = 'vendor') AND isapproved = 2
+    WHERE (role = '2' OR role = '3') AND isapproved = 2
   `;
 
   try {
