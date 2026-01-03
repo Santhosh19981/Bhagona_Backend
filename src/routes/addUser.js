@@ -8,6 +8,7 @@ router.post('/', async (req, res) => {
       fullName,
       email,
       mobile,
+      password,
       age,
       experience,
       address,
@@ -24,6 +25,14 @@ router.post('/', async (req, res) => {
     // ✅ Common field validation
     if (!fullName?.trim() || !email?.trim() || !mobile?.trim() || !address?.trim()) {
       return res.status(400).json({ message: 'Full name, Email, Mobile, and Address are required' });
+    }
+
+    // ✅ Password validation
+    if (!password?.trim()) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+    if (password.trim().length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
     // ✅ Check if email or mobile already exists
@@ -47,14 +56,15 @@ router.post('/', async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
         fullName.trim(),
         email.trim(),
         mobile.trim(),
+        password.trim(),
         age,
         experience,
         address.trim(),
@@ -74,14 +84,15 @@ router.post('/', async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, experience, address, \`describe\`, services, role, isapproved, isactive, businessname)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
         fullName.trim(),
         email.trim(),
         mobile.trim(),
+        password.trim(),
         experience || 0,
         address.trim(),
         declaration || '',
