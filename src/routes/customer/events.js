@@ -10,10 +10,17 @@ router.get("/", async (req, res) => {
             "SELECT event_id, name, description, image_url FROM events WHERE status = 'active' ORDER BY event_id DESC"
         );
 
+        const processedRows = rows.map(row => ({
+            ...row,
+            display_url: row.image_url && row.image_url.startsWith("data:")
+                ? `/events/image/${row.event_id}`
+                : row.image_url
+        }));
+
         return res.json({
             status: "success",
             message: "Events fetched successfully",
-            data: rows
+            data: processedRows
         });
 
     } catch (err) {
@@ -42,10 +49,15 @@ router.get("/:id", async (req, res) => {
             });
         }
 
+        const event = rows[0];
+        event.display_url = event.image_url && event.image_url.startsWith("data:")
+            ? `/events/image/${event.event_id}`
+            : event.image_url;
+
         return res.json({
             status: "success",
             message: "Event fetched successfully",
-            data: rows[0]
+            data: event
         });
 
     } catch (err) {

@@ -9,15 +9,56 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 
+// ---------------------- SERVE IMAGE FROM DB -------------------
+// This allows you to have a real URL that works on Vercel
+router.get("/image/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query("SELECT image_url FROM events WHERE event_id = ?", [id]);
+
+    if (rows.length === 0 || !rows[0].image_url || !rows[0].image_url.startsWith("data:")) {
+      return res.status(404).send("Image not found");
+    }
+
+    const base64Data = rows[0].image_url;
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+
+    if (!matches || matches.length !== 3) {
+      return res.status(400).send("Invalid image data");
+    }
+
+    const response = {
+      type: matches[1],
+      data: Buffer.from(matches[2], "base64")
+    };
+
+    res.set("Content-Type", response.type);
+    res.send(response.data);
+
+  } catch (err) {
+    console.error("❌ Image serve error:", err);
+    res.status(500).send("Error serving image");
+  }
+});
+
+
 // ---------------------- GET ALL EVENTS ----------------------
 router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM events ORDER BY event_id DESC");
 
+    // Add a helper field for the full proxy URL
+    const processedRows = rows.map(row => ({
+      ...row,
+      display_url: row.image_url && row.image_url.startsWith("data:")
+        ? `/events/image/${row.event_id}`
+        : row.image_url
+    }));
+
     return res.json({
       status: "success",
       message: "Events fetched successfully",
-      data: rows
+      data: processedRows
     });
 
   } catch (err) {
