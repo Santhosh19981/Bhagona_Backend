@@ -10,10 +10,17 @@ router.get("/", async (req, res) => {
             "SELECT service_id, name, description, unit_id, image_data FROM services WHERE status = 'active' ORDER BY service_id DESC"
         );
 
+        const processedRows = rows.map(row => ({
+            ...row,
+            display_url: row.image_data
+                ? (row.image_data.startsWith("data:") ? `/services/image/${row.service_id}` : row.image_data)
+                : null
+        }));
+
         return res.json({
             status: "success",
             message: "Services fetched successfully",
-            data: rows
+            data: processedRows
         });
 
     } catch (err) {
@@ -50,12 +57,25 @@ router.get("/:id", async (req, res) => {
             [id]
         );
 
+        const service = serviceRows[0];
+        service.display_url = service.image_data
+            ? (service.image_data.startsWith("data:") ? `/services/image/${service.service_id}` : service.image_data)
+            : null;
+
+        // Note: service_items image_url also needs proxying if they are base64
+        const processedItems = itemRows.map(item => ({
+            ...item,
+            display_url: item.image_url
+                ? (item.image_url.startsWith("data:") ? `/service-items/image/${item.service_item_id}` : item.image_url)
+                : null
+        }));
+
         return res.json({
             status: "success",
             message: "Service details fetched successfully",
             data: {
-                ...serviceRows[0],
-                items: itemRows
+                ...service,
+                items: processedItems
             }
         });
 

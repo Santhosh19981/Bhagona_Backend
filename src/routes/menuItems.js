@@ -4,22 +4,37 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 
-// ---------------------- IMAGE UPLOAD CONFIG ----------------------// Image upload config
-// Use /tmp on Vercel (writable), ./uploads locally
-const uploadDir = process.env.VERCEL ? "/tmp/uploads/menu_items/" : "./uploads/menu_items/";
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const fs = require('fs');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+// Multer config for Base64 (memory storage)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+
+// ---------------------- SERVE IMAGE FROM DB (PROXY) -------------------
+router.get("/image/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query("SELECT image_url FROM menu_items WHERE menu_item_id = ?", [id]);
+
+    if (rows.length === 0 || !rows[0].image_url || !rows[0].image_url.startsWith("data:")) {
+      return res.status(404).send("Image not found");
+    }
+
+    const base64Data = rows[0].image_url;
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+
+    if (!matches || matches.length !== 3) {
+      return res.status(400).send("Invalid image data");
+    }
+
+    res.set("Content-Type", matches[1]);
+    res.send(Buffer.from(matches[2], "base64"));
+
+  } catch (err) {
+    console.error("❌ Image serve error:", err);
+    res.status(500).send("Error serving image");
+  }
+});
+
 
 // ---------------------- GET ALL MENU ITEMS ----------------------
 router.get("/", async (req, res) => {
@@ -28,10 +43,17 @@ router.get("/", async (req, res) => {
       "SELECT * FROM menu_items ORDER BY menu_item_id DESC"
     );
 
+    const processedRows = rows.map(row => ({
+      ...row,
+      display_url: row.image_url
+        ? (row.image_url.startsWith("data:") ? `/menu-items/image/${row.menu_item_id}` : row.image_url)
+        : null
+    }));
+
     return res.json({
       status: "success",
       message: "Menu items fetched successfully",
-      data: rows,
+      data: processedRows,
     });
   } catch (err) {
     console.error("❌ GET menu items error:", err);
@@ -58,7 +80,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
     const nonvegFlag = nonveg == 1 ? 1 : 0;
 
     const imageUrl = req.file
-      ? `/uploads/menu_items/${req.file.filename}`
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : null;
 
     const sql = `
@@ -106,7 +128,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     const nonvegFlag = nonveg == 1 ? 1 : 0;
 
     const imageUrl = req.file
-      ? `/uploads/menu_items/${req.file.filename}`
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : existingImage || null;
 
     const sql = `

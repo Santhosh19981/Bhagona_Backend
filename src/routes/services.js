@@ -4,22 +4,36 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 
-// ---------------------- IMAGE UPLOAD CONFIG ----------------------// Image upload config
-// Use /tmp on Vercel (writable), ./uploads locally   
-const uploadDir = process.env.VERCEL ? "/tmp/uploads/services/" : "./uploads/services/";
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const fs = require('fs');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+// Multer config for Base64 (memory storage)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+
+// ---------------------- SERVE IMAGE FROM DB (PROXY) -------------------
+router.get("/image/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query("SELECT image_data FROM services WHERE service_id = ?", [id]);
+
+    if (rows.length === 0 || !rows[0].image_data || !rows[0].image_data.startsWith("data:")) {
+      return res.status(404).send("Image not found");
+    }
+
+    const base64Data = rows[0].image_data;
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+
+    if (!matches || matches.length !== 3) {
+      return res.status(400).send("Invalid image data");
+    }
+
+    res.set("Content-Type", matches[1]);
+    res.send(Buffer.from(matches[2], "base64"));
+
+  } catch (err) {
+    console.error("❌ Image serve error:", err);
+    res.status(500).send("Error serving image");
+  }
+});
 
 
 // ---------------------- GET ALL SERVICES ----------------------
@@ -29,10 +43,17 @@ router.get("/", async (req, res) => {
       "SELECT * FROM services ORDER BY service_id DESC"
     );
 
+    const processedRows = rows.map(row => ({
+      ...row,
+      display_url: row.image_data
+        ? (row.image_data.startsWith("data:") ? `/services/image/${row.service_id}` : row.image_data)
+        : null
+    }));
+
     return res.json({
       status: "success",
       message: "Services fetched successfully",
-      data: rows,
+      data: processedRows,
     });
 
   } catch (err) {
@@ -63,7 +84,9 @@ router.post("/create", upload.single("image"), async (req, res) => {
         ? null
         : unit_id;
 
-    const imageUrl = req.file ? `/uploads/services/${req.file.filename}` : null;
+    const imageUrl = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
+      : null;
 
     const sql = `
       INSERT INTO services (name, description, status, unit_id, image_data)
@@ -115,7 +138,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
     // 🟢 Determine final image
     const finalImage = req.file
-      ? `/uploads/services/${req.file.filename}`
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : existingImage || null;
 
     const sql = `

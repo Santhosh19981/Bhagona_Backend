@@ -1,0 +1,83 @@
+[
+  {
+    "Tables_in_u385969042_test_db": "Events"
+  },
+  {
+    "Tables_in_u385969042_test_db": "Users"
+  },
+  {
+    "Tables_in_u385969042_test_db": "admin_profiles"
+  },
+  {
+    "Tables_in_u385969042_test_db": "booking_menu_items"
+  },
+  {
+    "Tables_in_u385969042_test_db": "bookings"
+  },
+  {
+    "Tables_in_u385969042_test_db": "chef_availabilities"
+  },
+  {
+    "Tables_in_u385969042_test_db": "chef_bookings"
+  },
+  {
+    "Tables_in_u385969042_test_db": "chef_order_acceptance"
+  },
+  {
+    "Tables_in_u385969042_test_db": "chef_profiles"
+  },
+  {
+    "Tables_in_u385969042_test_db": "event_categories"
+  },
+  {
+    "Tables_in_u385969042_test_db": "events"
+  },
+  {
+    "Tables_in_u385969042_test_db": "events_audit"
+  },
+  {
+    "Tables_in_u385969042_test_db": "events_managing"
+  },
+  {
+    "Tables_in_u385969042_test_db": "menu_items"
+  },
+  {
+    "Tables_in_u385969042_test_db": "menus"
+  },
+  {
+    "Tables_in_u385969042_test_db": "orders"
+  },
+  {
+    "Tables_in_u385969042_test_db": "payment_history"
+  },
+  {
+    "Tables_in_u385969042_test_db": "reviews"
+  },
+  {
+    "Tables_in_u385969042_test_db": "roles"
+  },
+  {
+    "Tables_in_u385969042_test_db": "service_items"
+  },
+  {
+    "Tables_in_u385969042_test_db": "services"
+  },
+  {
+    "Tables_in_u385969042_test_db": "units"
+  },
+  {
+    "Tables_in_u385969042_test_db": "units_of_measure"
+  },
+  {
+    "Tables_in_u385969042_test_db": "users"
+  },
+  {
+    "Tables_in_u385969042_test_db": "vendor_bookings"
+  },
+  {
+    "Tables_in_u385969042_test_db": "vendor_order_acceptance"
+  },
+  {
+    "Tables_in_u385969042_test_db": "vendor_profiles"
+  }
+]
