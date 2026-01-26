@@ -47,12 +47,12 @@ router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM events ORDER BY event_id DESC");
 
-    // Add a helper field for the full proxy URL
+    // Use display_url for proxy, or raw URL if it's already a full link
     const processedRows = rows.map(row => ({
       ...row,
-      display_url: row.image_url && row.image_url.startsWith("data:")
-        ? `/events/image/${row.event_id}`
-        : row.image_url
+      display_url: row.image_url
+        ? (row.image_url.startsWith("data:") ? `/events/image/${row.event_id}` : row.image_url)
+        : null
     }));
 
     return res.json({
