@@ -4,21 +4,8 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 
-// Image upload config  
-// Use /tmp on Vercel (writable), ./uploads locally
-const uploadDir = process.env.VERCEL ? "/tmp/uploads/events/" : "./uploads/events/";
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const fs = require('fs');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+// Multer config for Base64 (memory storage)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 
@@ -55,7 +42,9 @@ router.post("/create", upload.single("image"), async (req, res) => {
       });
     }
 
-    const imageUrl = req.file ? `/uploads/events/${req.file.filename}` : null;
+    const imageUrl = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
+      : null;
 
     const sql = `
       INSERT INTO events (name, description, image_url, status)
@@ -93,7 +82,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     }
 
     const imageUrl = req.file
-      ? `/uploads/events/${req.file.filename}`
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : existingImage;
 
     const sql = `
