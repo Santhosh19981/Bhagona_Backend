@@ -1,6 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const path = require("path");
 
 // Routers
 const usersRouter = require("./routes/users");
@@ -18,6 +19,8 @@ const paymentsRouter = require("./routes/payments");
 const loginRouter = require("./routes/login");
 const approvalsRouter = require("./routes/approvals");
 const profilesRoutes = require("./routes/profiles");
+const customerEventsRouter = require("./routes/customer/events");
+const customerServicesRouter = require("./routes/customer/services");
 
 dotenv.config();
 const app = express();
@@ -26,8 +29,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Temporarily disabled for Vercel (read-only filesystem)
-// app.use("/uploads", express.static("uploads"));
+// Serve static files from uploads folder
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // CORS
 app.use(
@@ -64,6 +67,10 @@ app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
 app.use("/approvals", approvalsRouter);
 app.use("/profiles", profilesRoutes);
+
+// Customer Routes
+app.use("/customer/events", customerEventsRouter);
+app.use("/customer/services", customerServicesRouter);
 
 // 404 Not Found
 app.use((req, res) => {
