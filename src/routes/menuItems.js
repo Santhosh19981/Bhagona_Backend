@@ -67,7 +67,7 @@ router.get("/", async (req, res) => {
 // ---------------------- CREATE MENU ITEM ----------------------
 router.post("/create", upload.single("image"), async (req, res) => {
   try {
-    const { name, description, price, veg, nonveg, menu_category_id } = req.body;
+    const { name, description, price, veg, nonveg, menu_category_id, menu_subcategory_id } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -85,8 +85,8 @@ router.post("/create", upload.single("image"), async (req, res) => {
 
     const sql = `
       INSERT INTO menu_items 
-      (name, description, image_url, price, veg, nonveg, menu_category_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      (name, description, image_url, price, veg, nonveg, menu_category_id, menu_subcategory_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     await pool.query(sql, [
@@ -97,6 +97,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
       vegFlag,
       nonvegFlag,
       menu_category_id || null,
+      menu_subcategory_id || null,
     ]);
 
     res.json({
@@ -116,7 +117,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 router.put("/update/:id", upload.single("image"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, veg, nonveg, existingImage, menu_category_id } = req.body;
+    const { name, description, price, veg, nonveg, existingImage, menu_category_id, menu_subcategory_id } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -134,7 +135,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
     const sql = `
       UPDATE menu_items
-      SET name = ?, description = ?, price = ?, veg = ?, nonveg = ?, image_url = ?, menu_category_id = ?, updated_at = NOW()
+      SET name = ?, description = ?, price = ?, veg = ?, nonveg = ?, image_url = ?, menu_category_id = ?, menu_subcategory_id = ?, updated_at = NOW()
       WHERE menu_item_id = ?
     `;
 
@@ -146,6 +147,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
       nonvegFlag,
       imageUrl,
       menu_category_id || null,
+      menu_subcategory_id || null,
       id,
     ]);
 

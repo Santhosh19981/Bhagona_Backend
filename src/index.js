@@ -22,6 +22,7 @@ const profilesRoutes = require("./routes/profiles");
 const customerEventsRouter = require("./routes/customer/events");
 const customerServicesRouter = require("./routes/customer/services");
 const menuCategoriesRouter = require("./routes/menuCategories");
+const menuSubcategoriesRouter = require("./routes/menuSubcategories");
 
 dotenv.config();
 const app = express();
@@ -73,6 +74,7 @@ app.use("/profiles", profilesRoutes);
 app.use("/customer/events", customerEventsRouter);
 app.use("/customer/services", customerServicesRouter);
 app.use("/menu-categories", menuCategoriesRouter);
+app.use("/menu-subcategories", menuSubcategoriesRouter);
 
 // 404 Not Found
 app.use((req, res) => {
