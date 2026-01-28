@@ -67,7 +67,7 @@ router.get("/", async (req, res) => {
 // ---------------------- CREATE MENU ITEM ----------------------
 router.post("/create", upload.single("image"), async (req, res) => {
   try {
-    const { name, description, price, veg, nonveg, menu_category_id, menu_subcategory_id } = req.body;
+    const { name, description, price, menu_category_id, menu_subcategory_id } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -76,17 +76,14 @@ router.post("/create", upload.single("image"), async (req, res) => {
       });
     }
 
-    const vegFlag = veg == 1 ? 1 : 0;
-    const nonvegFlag = nonveg == 1 ? 1 : 0;
-
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : null;
 
     const sql = `
       INSERT INTO menu_items 
-      (name, description, image_url, price, veg, nonveg, menu_category_id, menu_subcategory_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      (name, description, image_url, price, menu_category_id, menu_subcategory_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     await pool.query(sql, [
@@ -94,8 +91,6 @@ router.post("/create", upload.single("image"), async (req, res) => {
       description || null,
       imageUrl,
       price,
-      vegFlag,
-      nonvegFlag,
       menu_category_id || null,
       menu_subcategory_id || null,
     ]);
@@ -109,6 +104,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Server error",
+      details: err.message
     });
   }
 });
@@ -117,7 +113,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 router.put("/update/:id", upload.single("image"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, veg, nonveg, existingImage, menu_category_id, menu_subcategory_id } = req.body;
+    const { name, description, price, existingImage, menu_category_id, menu_subcategory_id } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -126,16 +122,13 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
       });
     }
 
-    const vegFlag = veg == 1 ? 1 : 0;
-    const nonvegFlag = nonveg == 1 ? 1 : 0;
-
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
       : existingImage || null;
 
     const sql = `
       UPDATE menu_items
-      SET name = ?, description = ?, price = ?, veg = ?, nonveg = ?, image_url = ?, menu_category_id = ?, menu_subcategory_id = ?, updated_at = NOW()
+      SET name = ?, description = ?, price = ?, image_url = ?, menu_category_id = ?, menu_subcategory_id = ?, updated_at = NOW()
       WHERE menu_item_id = ?
     `;
 
@@ -143,8 +136,6 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
       name,
       description || null,
       price,
-      vegFlag,
-      nonvegFlag,
       imageUrl,
       menu_category_id || null,
       menu_subcategory_id || null,
@@ -161,6 +152,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Server error",
+      details: err.message
     });
   }
 });
@@ -191,14 +183,7 @@ router.get("/filter", async (req, res) => {
   try {
     const { type } = req.query;
 
-    let sql = "SELECT * FROM menu_items";
-
-    if (type === "veg") {
-      sql += " WHERE veg = 1";
-    } else if (type === "nonveg") {
-      sql += " WHERE nonveg = 1";
-    }
-
+    let sql = "SELECT * FROM menu_items ORDER BY menu_item_id DESC";
     const [rows] = await pool.query(sql);
 
     res.json({

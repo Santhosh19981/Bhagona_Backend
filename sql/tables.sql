@@ -48,8 +48,6 @@ CREATE TABLE IF NOT EXISTS menu_items (
   description TEXT,
   image_url LONGTEXT,
   price DECIMAL(10,2) DEFAULT 0,
-  veg TINYINT(1) DEFAULT 0,
-  nonveg TINYINT(1) DEFAULT 0,
   menu_category_id INT,
   menu_subcategory_id INT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
