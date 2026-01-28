@@ -39,9 +39,14 @@ router.get("/image/:id", async (req, res) => {
 // ---------------------- GET ALL MENU ITEMS ----------------------
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT * FROM menu_items ORDER BY menu_item_id DESC"
-    );
+    const sql = `
+      SELECT mi.*, mc.name as category_name, ms.name as subcategory_name
+      FROM menu_items mi
+      LEFT JOIN menu_category mc ON mi.menu_category_id = mc.id
+      LEFT JOIN menu_subcategory ms ON mi.menu_subcategory_id = ms.id
+      ORDER BY mi.menu_item_id DESC
+    `;
+    const [rows] = await pool.query(sql);
 
     const processedRows = rows.map(row => ({
       ...row,
@@ -60,6 +65,47 @@ router.get("/", async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Server error",
+      details: err.message
+    });
+  }
+});
+
+// ---------------------- GET MENU ITEM BY ID ----------------------
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = `
+      SELECT mi.*, mc.name as category_name, ms.name as subcategory_name
+      FROM menu_items mi
+      LEFT JOIN menu_category mc ON mi.menu_category_id = mc.id
+      LEFT JOIN menu_subcategory ms ON mi.menu_subcategory_id = ms.id
+      WHERE mi.menu_item_id = ?
+    `;
+    const [rows] = await pool.query(sql, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ status: "error", message: "Menu item not found" });
+    }
+
+    const item = rows[0];
+    const processedItem = {
+      ...item,
+      display_url: item.image_url
+        ? (item.image_url.startsWith("data:") ? `/menu-items/image/${item.menu_item_id}` : item.image_url)
+        : null
+    };
+
+    return res.json({
+      status: "success",
+      message: "Menu item fetched successfully",
+      data: processedItem,
+    });
+  } catch (err) {
+    console.error("❌ GET menu item by id error:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Server error",
+      details: err.message
     });
   }
 });
@@ -174,6 +220,7 @@ router.delete("/delete/:id", async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Server error",
+      details: err.message
     });
   }
 });
@@ -183,7 +230,13 @@ router.get("/filter", async (req, res) => {
   try {
     const { type } = req.query;
 
-    let sql = "SELECT * FROM menu_items ORDER BY menu_item_id DESC";
+    let sql = `
+      SELECT mi.*, mc.name as category_name, ms.name as subcategory_name
+      FROM menu_items mi
+      LEFT JOIN menu_category mc ON mi.menu_category_id = mc.id
+      LEFT JOIN menu_subcategory ms ON mi.menu_subcategory_id = ms.id
+      ORDER BY mi.menu_item_id DESC
+    `;
     const [rows] = await pool.query(sql);
 
     res.json({
@@ -195,6 +248,7 @@ router.get("/filter", async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Server error",
+      details: err.message
     });
   }
 });
