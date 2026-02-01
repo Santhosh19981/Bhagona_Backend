@@ -77,7 +77,7 @@ router.get("/", async (req, res) => {
 // ---------------------------------------------------------------
 router.post("/create", upload.single("image"), async (req, res) => {
   try {
-    const { service_id, name, description, quantity_type, price } = req.body;
+    const { service_id, name, description, quantity_type, price, status } = req.body;
 
     if (!service_id || !name || !price) {
       return res.status(400).json({
@@ -92,8 +92,8 @@ router.post("/create", upload.single("image"), async (req, res) => {
 
     const sql = `
       INSERT INTO service_items 
-      (service_id, name, description, quantity_type, price, image_url, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+      (service_id, name, description, quantity_type, price, image_url, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     await pool.query(sql, [
@@ -103,6 +103,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
       quantity_type || null,
       price,
       imageUrl,
+      status || 'active',
     ]);
 
     res.json({
@@ -132,6 +133,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
       quantity_type,
       price,
       existingImage,
+      status,
     } = req.body;
 
     if (!service_id || !name || !price) {
@@ -148,7 +150,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
     const sql = `
       UPDATE service_items
       SET service_id = ?, name = ?, description = ?, quantity_type = ?, 
-          price = ?, image_url = ?, updated_at = NOW()
+          price = ?, image_url = ?, status = ?, updated_at = NOW()
       WHERE service_item_id = ?
     `;
 
@@ -159,6 +161,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
       quantity_type || null,
       price,
       imageUrl,
+      status || 'active',
       id,
     ]);
 
