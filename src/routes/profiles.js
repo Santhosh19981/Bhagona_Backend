@@ -171,21 +171,27 @@ router.put("/status/:id", async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// UPDATE USER PROFILE (Full Update)
+// UPDATE USER PROFILE (Generic)
 // -------------------------------------------------------------
 router.put("/user/:id", upload.single("image"), async (req, res) => {
   const { id } = req.params;
   const {
     name,
+    fullName, // Support both
     email,
     mobile,
+    password, // Added password support
     address,
     age,
     experience,
     cookingstyle,
+    cookingStyle, // Support both
     services,
     describe,
+    declaration, // Support both
     businessname,
+    businessName, // Support both
+    rating,
     existingImage
   } = req.body;
 
@@ -196,20 +202,26 @@ router.put("/user/:id", upload.single("image"), async (req, res) => {
 
     const sql = `
       UPDATE Users 
-      SET name = ?, email = ?, mobile = ?, address = ?, age = ?, 
+      SET name = ?, email = ?, mobile = ?, password = ?, address = ?, age = ?, 
           experience = ?, cookingstyle = ?, services = ?, \`describe\` = ?, 
-          businessname = ?, image = ?, updatedAt = NOW()
+          businessname = ?, image = ?, rating = ?, updatedAt = NOW()
       WHERE id = ?
     `;
 
     const values = [
-      name, email, mobile, address, age || null,
+      name || fullName,
+      email,
+      mobile,
+      password || null, // Updated with password
+      address,
+      age || null,
       experience || null,
-      Array.isArray(cookingstyle) ? cookingstyle.join(', ') : cookingstyle || '',
+      Array.isArray(cookingstyle || cookingStyle) ? (cookingstyle || cookingStyle).join(', ') : (cookingstyle || cookingStyle) || '',
       Array.isArray(services) ? services.join(', ') : services || '',
-      describe || '',
-      businessname || '',
+      describe || declaration || '',
+      businessname || businessName || '',
       imageUrl,
+      rating || null,
       id
     ];
 
@@ -223,6 +235,18 @@ router.put("/user/:id", upload.single("image"), async (req, res) => {
     console.error("DB Error:", err);
     return res.status(500).json({ status: false, message: "Database error" });
   }
+});
+
+// Alias routes to match user expectations
+router.put("/update-chef/:id", upload.single("image"), async (req, res) => {
+  // Re-use logic or just redirect? Let's just point to the same handler logic
+  req.url = `/user/${req.params.id}`;
+  return router.handle(req, res);
+});
+
+router.put("/update-vendor/:id", upload.single("image"), async (req, res) => {
+  req.url = `/user/${req.params.id}`;
+  return router.handle(req, res);
 });
 
 // -------------------------------------------------------------
