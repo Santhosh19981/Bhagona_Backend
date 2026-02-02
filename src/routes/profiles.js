@@ -171,9 +171,9 @@ router.put("/status/:id", async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// UPDATE USER PROFILE (Generic)
+// UPDATE USER PROFILE HANDLER
 // -------------------------------------------------------------
-router.put("/user/:id", upload.single("image"), async (req, res) => {
+const updateUserProfile = async (req, res) => {
   const { id } = req.params;
   const {
     name,
@@ -212,7 +212,7 @@ router.put("/user/:id", upload.single("image"), async (req, res) => {
       name || fullName,
       email,
       mobile,
-      password || null, // Updated with password
+      password || null,
       address,
       age || null,
       experience || null,
@@ -225,7 +225,11 @@ router.put("/user/:id", upload.single("image"), async (req, res) => {
       id
     ];
 
-    await db.query(sql, values);
+    const [result] = await db.query(sql, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "User not found or no changes made" });
+    }
 
     return res.json({
       status: true,
@@ -235,19 +239,11 @@ router.put("/user/:id", upload.single("image"), async (req, res) => {
     console.error("DB Error:", err);
     return res.status(500).json({ status: false, message: "Database error" });
   }
-});
+};
 
-// Alias routes to match user expectations
-router.put("/update-chef/:id", upload.single("image"), async (req, res) => {
-  // Re-use logic or just redirect? Let's just point to the same handler logic
-  req.url = `/user/${req.params.id}`;
-  return router.handle(req, res);
-});
-
-router.put("/update-vendor/:id", upload.single("image"), async (req, res) => {
-  req.url = `/user/${req.params.id}`;
-  return router.handle(req, res);
-});
+router.put("/user/:id", upload.single("image"), updateUserProfile);
+router.put("/update-chef/:id", upload.single("image"), updateUserProfile);
+router.put("/update-vendor/:id", upload.single("image"), updateUserProfile);
 
 // -------------------------------------------------------------
 // DELETE USER
