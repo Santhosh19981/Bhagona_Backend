@@ -119,7 +119,7 @@ router.put("/approve/:id", async (req, res) => {
 
   const query = `
     UPDATE Users 
-    SET isapproved = 1, approvedby = ?
+    SET isapproved = 1, isactive = 1, approvedby = ?
     WHERE id = ?
   `;
 
@@ -148,7 +148,7 @@ router.put("/reject/:id", async (req, res) => {
 
   const query = `
     UPDATE Users
-    SET isapproved = 2, approvedby = NULL
+    SET isapproved = 2, isactive = 0, approvedby = NULL
     WHERE id = ?
   `;
 
