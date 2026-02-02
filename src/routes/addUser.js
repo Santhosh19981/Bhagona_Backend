@@ -13,6 +13,9 @@ const upload = multer({
 
 router.post('/', upload.single('image'), async (req, res) => {
   try {
+    console.log('📥 req.body:', JSON.stringify(req.body, null, 2));
+    console.log('📥 req.file:', req.file ? `File present: ${req.file.originalname}` : 'No file');
+
     const {
       fullName,
       email,
@@ -32,9 +35,10 @@ router.post('/', upload.single('image'), async (req, res) => {
     const isactive = 0;
 
     // ✅ Common field validation
-    if (!fullName?.trim() || !email?.trim() || !mobile?.trim() || !address?.trim()) {
-      return res.status(400).json({ message: 'Full name, Email, Mobile, and Address are required' });
-    }
+    if (!fullName?.trim()) return res.status(400).json({ message: 'Full name is required' });
+    if (!email?.trim()) return res.status(400).json({ message: 'Email is required' });
+    if (!mobile?.trim()) return res.status(400).json({ message: 'Mobile is required' });
+    if (!address?.trim()) return res.status(400).json({ message: 'Address is required' });
 
     // ✅ Password validation
     if (!password?.trim()) {
@@ -63,7 +67,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     let values = [];
 
     // ✅ Role 2 = Chef
-    if (role === 2) {
+    if (Number(role) === 2) {
       if (!age || !experience) {
         return res.status(400).json({ message: 'Age and Experience are required for Chef' });
       }
@@ -92,7 +96,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     // ✅ Role 3 = Vendor
-    else if (role === 3) {
+    else if (Number(role) === 3) {
       if (!businessName?.trim() || !services?.length) {
         return res.status(400).json({ message: 'Business name and Services are required for Vendor' });
       }
@@ -127,7 +131,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     const [result] = await db.query(insertQuery, values);
 
     return res.status(200).json({
-      message: role === 2 ? 'Chef registered successfully' : 'Vendor registered successfully',
+      message: Number(role) === 2 ? 'Chef registered successfully' : 'Vendor registered successfully',
       userId: result.insertId
     });
 
