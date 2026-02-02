@@ -1,8 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // promise pool
+const multer = require('multer');
+const path = require('path');
 
-router.post('/', async (req, res) => {
+// Multer config for Base64 (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+router.post('/', upload.single('image'), async (req, res) => {
   try {
     const {
       fullName,
@@ -45,6 +54,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Email or Mobile already registered' });
     }
 
+    // ✅ Handle image
+    const imageBase64 = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : null;
+
     let insertQuery = '';
     let values = [];
 
@@ -56,8 +70,8 @@ router.post('/', async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive, image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
@@ -72,7 +86,8 @@ router.post('/', async (req, res) => {
         declaration || '',
         role,
         isapproved,
-        isactive
+        isactive,
+        imageBase64
       ];
     }
 
@@ -84,8 +99,8 @@ router.post('/', async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname, image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
@@ -100,7 +115,8 @@ router.post('/', async (req, res) => {
         role,
         isapproved,
         isactive,
-        businessName.trim()
+        businessName.trim(),
+        imageBase64
       ];
     }
 
