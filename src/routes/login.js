@@ -52,6 +52,7 @@ router.post('/', async (req, res) => {
         role: user.role,
         mobile: user.mobile,
         image: user.image,
+        rating: user.rating,
       },
     });
   } catch (err) {

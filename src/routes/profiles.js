@@ -51,7 +51,7 @@ router.get("/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await db.query(
-      "SELECT id, name, email, mobile, role, isactive, isapproved, address, age, experience, cookingstyle, services, \`describe\`, businessname, image, createdAt FROM Users WHERE id = ?",
+      "SELECT id, name, email, mobile, role, isactive, isapproved, address, age, experience, cookingstyle, services, \`describe\`, businessname, image, rating, approvedby, createdAt, updatedAt FROM Users WHERE id = ?",
       [id]
     );
 
@@ -73,7 +73,7 @@ router.get("/user/:id", async (req, res) => {
 router.get("/customers", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, email, mobile, isactive, isapproved, address, image, createdAt
+      `SELECT id, name, email, mobile, isactive, isapproved, address, image, rating, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 1`
     );
 
@@ -98,7 +98,7 @@ router.get("/chefs", async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT id, name, email, mobile, experience, cookingstyle, services,
-              isactive, isapproved, address, \`describe\`, image
+              isactive, isapproved, address, \`describe\`, image, rating, age, businessname, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 2`
     );
 
@@ -123,7 +123,7 @@ router.get("/vendors", async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT id, name, email, mobile, businessname, isactive, isapproved,
-              address, \`describe\`, image
+              address, \`describe\`, image, rating, age, experience, cookingstyle, services, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 3`
     );
 

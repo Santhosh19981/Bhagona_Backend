@@ -74,8 +74,8 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive, image, rating)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
@@ -91,7 +91,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         role,
         isapproved,
         isactive,
-        imageBase64
+        imageBase64,
+        4 // Default rating
       ];
     }
 
@@ -103,8 +104,8 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname, image, rating)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       values = [
@@ -120,7 +121,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         isapproved,
         isactive,
         businessName.trim(),
-        imageBase64
+        imageBase64,
+        4 // Default rating
       ];
     }
 
