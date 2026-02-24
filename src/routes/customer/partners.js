@@ -30,15 +30,34 @@ router.get("/chefs", async (req, res) => {
 
 // -------------------------------------------------------------
 // GET PUBLIC VENDORS (role = 3, active & approved)
+// Optional: Filter by service_id
 // -------------------------------------------------------------
 router.get("/vendors", async (req, res) => {
     try {
-        const [rows] = await db.query(
-            `SELECT id, name, email, mobile, businessname, address, \`describe\`, 
-              image, rating, age, experience, cookingstyle, services, createdAt
-       FROM Users 
-       WHERE role = 3 AND isactive = 1 AND isapproved = 1`
-        );
+        const { service_id } = req.query;
+        let sql = `
+            SELECT id, name, email, mobile, businessname, address, \`describe\`, 
+                   image, rating, age, experience, cookingstyle, services, createdAt
+            FROM Users 
+        `;
+        let params = [];
+
+        if (service_id) {
+            sql = `
+                SELECT u.id, u.name, u.email, u.mobile, u.businessname, u.address, u.\`describe\`, 
+                       u.image, u.rating, u.age, u.experience, u.cookingstyle, u.services, u.createdAt
+                FROM Users u
+                INNER JOIN vendor_service_mappings vsm ON u.id = vsm.vendor_id
+                WHERE u.role = 3 AND u.isactive = 1 AND u.isapproved = 1 AND vsm.service_id = ?
+            `;
+            params.push(service_id);
+        } else {
+            sql += `
+                WHERE role = 3 AND isactive = 1 AND isapproved = 1
+            `;
+        }
+
+        const [rows] = await db.query(sql, params);
 
         const processedRows = rows.map(row => ({
             ...row,
@@ -53,5 +72,6 @@ router.get("/vendors", async (req, res) => {
         return res.status(500).json({ status: false, message: "Database error" });
     }
 });
+
 
 module.exports = router;

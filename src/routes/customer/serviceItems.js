@@ -22,10 +22,29 @@ router.get("/:serviceId", async (req, res) => {
         }
 
         // Fetch service items
-        const [itemRows] = await pool.query(
-            "SELECT service_item_id, service_id, name, description, quantity_type, price, status, image_url FROM service_items WHERE service_id = ? AND status = 'active' ORDER BY service_item_id ASC",
-            [serviceId]
-        );
+        const { vendor_id } = req.query;
+        let itemSql = `
+            SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type, si.price, si.status, si.image_url 
+            FROM service_items si
+        `;
+        let itemParams = [serviceId];
+
+        if (vendor_id) {
+            itemSql += `
+                INNER JOIN vendor_item_mappings vim ON si.service_item_id = vim.service_item_id
+                WHERE si.service_id = ? AND si.status = 'active' AND vim.vendor_id = ?
+                ORDER BY si.service_item_id ASC
+            `;
+            itemParams.push(vendor_id);
+        } else {
+            itemSql += `
+                WHERE si.service_id = ? AND si.status = 'active' 
+                ORDER BY si.service_item_id ASC
+            `;
+        }
+
+        const [itemRows] = await pool.query(itemSql, itemParams);
+
 
         const service = serviceRows[0];
 
