@@ -42,6 +42,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:4200",
+      "http://localhost:4201",
       "https://bhagona.in",
       "https://admin.bhagona.in",
       "https://partner.bhagona.in"
