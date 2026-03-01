@@ -46,6 +46,10 @@ router.post("/services/sync", async (req, res) => {
       await connection.query("INSERT INTO vendor_service_mappings (vendor_id, service_id) VALUES ?", [values]);
     }
 
+    // 3. 🟢 SYNC with legacy 'Users' table column
+    const servicesStr = service_ids.join(',');
+    await connection.query("UPDATE Users SET services = ? WHERE id = ?", [servicesStr, vendor_id]);
+
     await connection.commit();
     res.json({ status: true, message: "Services synced successfully" });
 
@@ -109,8 +113,8 @@ router.get("/my-setup/:vendor_id", async (req, res) => {
     const [services] = await pool.query(`
       SELECT s.service_id, s.name, s.description
       FROM services s
-      INNER JOIN vendor_service_mappings vsm ON s.service_id = vsm.service_id
-      WHERE vsm.vendor_id = ?
+      INNER JOIN Users u ON FIND_IN_SET(s.service_id, u.services)
+      WHERE u.id = ?
     `, [vendor_id]);
 
     // Get selected items
@@ -135,5 +139,80 @@ router.get("/my-setup/:vendor_id", async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// 🟢 GET VENDOR SELECTED SERVICES ONLY
+// -------------------------------------------------------------
+router.get("/services/:vendor_id", async (req, res) => {
+  try {
+    const { vendor_id } = req.params;
+    console.log(`🔍 Fetching services for Vendor ID: ${vendor_id}`);
+
+    const [rows] = await pool.query(`
+      SELECT DISTINCT s.service_id, s.name, s.description, s.image_data,
+             (SELECT COUNT(*) FROM vendor_item_mappings vim 
+              JOIN service_items si ON vim.service_item_id = si.service_item_id
+              WHERE vim.vendor_id = ? AND si.service_id = s.service_id) as item_count
+      FROM services s
+      LEFT JOIN Users u ON u.id = ?
+      LEFT JOIN vendor_service_mappings vsm ON vsm.service_id = s.service_id AND vsm.vendor_id = ?
+      WHERE FIND_IN_SET(s.service_id, REPLACE(u.services, ' ', '')) 
+         OR vsm.vendor_id IS NOT NULL
+    `, [vendor_id, vendor_id, vendor_id]);
+
+    console.log(`✅ Found ${rows.length} services for Vendor ${vendor_id}`);
+
+    const processedRows = rows.map(row => ({
+      ...row,
+      display_url: row.image_data
+        ? (row.image_data.startsWith("data:") ? `/services/image/${row.service_id}` : row.image_data)
+        : null
+    }));
+
+    res.json({
+      status: true,
+      data: processedRows
+    });
+
+  } catch (err) {
+    console.error("❌ Get Vendor Services Error:", err);
+    res.status(500).json({ status: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 🟢 GET ALL ITEMS FOR A SERVICE WITH VENDOR SELECTION STATUS
+// -------------------------------------------------------------
+router.get("/service-items/:vendor_id/:service_id", async (req, res) => {
+  try {
+    const { vendor_id, service_id } = req.params;
+
+    const [rows] = await pool.query(`
+      SELECT si.service_item_id, si.name, si.description, si.price, si.quantity_type, si.image_url,
+             CASE WHEN vim.vendor_id IS NOT NULL THEN 1 ELSE 0 END as is_selected
+      FROM service_items si
+      LEFT JOIN vendor_item_mappings vim ON si.service_item_id = vim.service_item_id AND vim.vendor_id = ?
+      WHERE si.service_id = ? AND si.status = 'active'
+    `, [vendor_id, service_id]);
+
+    const processedRows = rows.map(row => ({
+      ...row,
+      display_url: row.image_url
+        ? (row.image_url.startsWith("data:") ? `/service-items/image/${row.service_item_id}` : row.image_url)
+        : null
+    }));
+
+    res.json({
+      status: true,
+      data: processedRows
+    });
+
+  } catch (err) {
+    console.error("❌ Get Vendor Service Items Status Error:", err);
+    res.status(500).json({ status: false, error: err.message });
+  }
+});
+
 module.exports = router;
+
+
 

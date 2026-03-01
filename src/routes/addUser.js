@@ -131,10 +131,20 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     const [result] = await db.query(insertQuery, values);
+    const userId = result.insertId;
+
+    // ✅ If Vendor, insert service mappings
+    if (Number(role) === 3 && services) {
+      const serviceIdArray = services.split(',').map(id => id.trim()).filter(id => id);
+      if (serviceIdArray.length > 0) {
+        const mappingValues = serviceIdArray.map(sid => [userId, sid]);
+        await db.query('INSERT INTO vendor_service_mappings (vendor_id, service_id) VALUES ?', [mappingValues]);
+      }
+    }
 
     return res.status(200).json({
       message: Number(role) === 2 ? 'Chef registered successfully' : 'Vendor registered successfully',
-      userId: result.insertId
+      userId: userId
     });
 
   } catch (err) {
