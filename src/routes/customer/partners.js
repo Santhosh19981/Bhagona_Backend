@@ -42,22 +42,42 @@ router.get("/vendors", async (req, res) => {
         `;
         let params = [];
 
+        console.log(`🔍 Received request for vendors. service_id:`, service_id);
+
         if (service_id) {
+            const cleanSid = service_id.toString().trim();
+            console.log(`🔍 Cleaned service_id: [${cleanSid}]`);
+
+            // Using a broader match and supporting multiple formats
+            // Checking both the mapping table and the legacy column
             sql = `
                 SELECT u.id, u.name, u.email, u.mobile, u.businessname, u.address, u.\`describe\`, 
                        u.image, u.rating, u.age, u.experience, u.cookingstyle, u.services, u.createdAt
                 FROM Users u
-                INNER JOIN vendor_service_mappings vsm ON u.id = vsm.vendor_id
-                WHERE u.role = 3 AND u.isactive = 1 AND u.isapproved = 1 AND vsm.service_id = ?
+                LEFT JOIN vendor_service_mappings vsm ON u.id = vsm.vendor_id
+                WHERE u.role = 3 AND u.isactive = 1 AND u.isapproved = 1 
+                  AND (
+                    vsm.service_id = ? 
+                    OR FIND_IN_SET(?, REPLACE(u.services, ' ', ''))
+                    OR u.services = ?
+                    OR u.services LIKE CONCAT('%,', ?, ',%')
+                    OR u.services LIKE CONCAT(?, ',%')
+                    OR u.services LIKE CONCAT('%,', ?)
+                  )
+                GROUP BY u.id
             `;
-            params.push(service_id);
+            params.push(cleanSid, cleanSid, cleanSid, cleanSid, cleanSid, cleanSid);
         } else {
             sql += `
                 WHERE role = 3 AND isactive = 1 AND isapproved = 1
             `;
         }
 
+        console.log('🚀 Executing SQL:', sql);
+        console.log('📦 Params:', params);
+
         const [rows] = await db.query(sql, params);
+        console.log(`✅ Found ${rows.length} vendors`);
 
         const processedRows = rows.map(row => ({
             ...row,

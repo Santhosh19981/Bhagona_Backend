@@ -1,0 +1,26 @@
+[
+  {
+    "id": 7,
+    "name": "Tarun",
+    "services": "Food Supply, Event Catering",
+    "isactive": 1,
+    "isapproved": 1,
+    "role": 3
+  },
+  {
+    "id": 24,
+    "name": "harsha",
+    "services": "Food Supply",
+    "isactive": 1,
+    "isapproved": 1,
+    "role": 3
+  },
+  {
+    "id": 25,
+    "name": "Vijay",
+    "services": "3",
+    "isactive": 1,
+    "isapproved": 1,
+    "role": 3
+  }
+]

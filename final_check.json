@@ -1,0 +1,30 @@
+{
+  "services": [
+    {
+      "service_id": 3,
+      "name": "Poultry & Mutton"
+    }
+  ],
+  "users": [
+    {
+      "id": 9,
+      "name": "vijay",
+      "services": null
+    },
+    {
+      "id": 16,
+      "name": "vijay",
+      "services": null
+    },
+    {
+      "id": 20,
+      "name": "vijay",
+      "services": null
+    },
+    {
+      "id": 25,
+      "name": "Vijay",
+      "services": "3"
+    }
+  ]
+}
