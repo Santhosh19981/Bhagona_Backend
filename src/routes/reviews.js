@@ -14,4 +14,23 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Get reviews for a specific vendor
+router.get('/vendor/:vendor_id', async (req, res) => {
+  try {
+    const { vendor_id } = req.params;
+    const [rows] = await db.query(`
+      SELECT r.*, u.name as customer_name 
+      FROM vendor_reviews r 
+      JOIN Users u ON r.customer_id = u.id 
+      WHERE r.vendor_id = ?
+      ORDER BY r.created_at DESC
+    `, [vendor_id]);
+
+    res.json({ status: true, data: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ status: false, message: 'Database error' });
+  }
+});
+
 module.exports = router;

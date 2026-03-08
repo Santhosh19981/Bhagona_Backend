@@ -25,6 +25,7 @@ const menuCategoriesRouter = require("./routes/menuCategories");
 const menuSubcategoriesRouter = require("./routes/menuSubcategories");
 const customerPartnersRouter = require("./routes/customer/partners");
 const customerServiceItemsRouter = require("./routes/customer/serviceItems");
+const bannersRouter = require("./routes/banners");
 
 
 dotenv.config();
@@ -73,6 +74,7 @@ app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
 app.use("/approvals", approvalsRouter);
 app.use("/profiles", profilesRoutes);
+app.use("/banners", bannersRouter);
 
 // Customer Routes
 app.use("/customer/events", customerEventsRouter);
