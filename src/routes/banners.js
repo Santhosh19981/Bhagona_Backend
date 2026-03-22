@@ -10,6 +10,9 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
+// Test route for router existence
+router.get('/health', (req, res) => res.json({ status: true, message: 'Banners router is active' }));
+
 // Get all dynamic banners (global or vendor specific)
 router.get('/', async (req, res) => {
     try {

@@ -38,6 +38,12 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Serve static files from uploads folder
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// Request logging for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // CORS
 app.use(
   cors({
@@ -59,6 +65,7 @@ app.get("/", (req, res) => {
 });
 
 // Routes
+app.use("/banners", bannersRouter);
 app.use("/users", usersRouter);
 app.use("/addUser", addUserRouter);
 app.use("/events", eventsRouter);
@@ -74,7 +81,6 @@ app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
 app.use("/approvals", approvalsRouter);
 app.use("/profiles", profilesRoutes);
-app.use("/banners", bannersRouter);
 
 // Customer Routes
 app.use("/customer/events", customerEventsRouter);
