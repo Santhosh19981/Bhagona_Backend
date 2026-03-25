@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
 router.get('/vendor/:vendor_id', async (req, res) => {
   try {
     const { vendor_id } = req.params;
-    const [rows] = await db.query(`
+    const [rows] = await pool.query(`
       SELECT r.*, u.name as customer_name 
       FROM vendor_reviews r 
       JOIN Users u ON r.customer_id = u.id 

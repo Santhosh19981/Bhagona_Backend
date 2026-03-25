@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const pool = require('../db');
 const multer = require('multer');
 
 // Memory storage for Base64 image
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
             params.push(vendor_id);
         }
 
-        const [rows] = await db.query(query, params);
+        const [rows] = await pool.query(query, params);
         res.json({ status: true, data: rows });
     } catch (err) {
         console.error(err);
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
 router.get('/vendor/:vendor_id', async (req, res) => {
     try {
         const { vendor_id } = req.params;
-        const [rows] = await db.query('SELECT * FROM vendor_banners WHERE vendor_id = ?', [vendor_id]);
+        const [rows] = await pool.query('SELECT * FROM vendor_banners WHERE vendor_id = ?', [vendor_id]);
         res.json({ status: true, data: rows });
     } catch (err) {
         console.error(err);
@@ -48,16 +48,16 @@ router.get('/vendor/:vendor_id', async (req, res) => {
 // Add new banner
 router.post('/', upload.single('image'), async (req, res) => {
     try {
-        const { vendor_id, title, description, link_url } = req.body;
+        const { vendor_id, service_id, title, description, link_url } = req.body;
         let image_url = null;
 
         if (req.file) {
             image_url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         }
 
-        const [result] = await db.query(
-            'INSERT INTO vendor_banners (vendor_id, image_url, title, description, link_url) VALUES (?, ?, ?, ?, ?)',
-            [vendor_id, image_url, title, description, link_url]
+        const [result] = await pool.query(
+            'INSERT INTO vendor_banners (vendor_id, service_id, image_url, title, description, link_url) VALUES (?, ?, ?, ?, ?, ?)',
+            [vendor_id, service_id || null, image_url, title, description, link_url]
         );
 
         res.json({ status: true, message: 'Banner added successfully', id: result.insertId });
@@ -71,7 +71,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await db.query('DELETE FROM vendor_banners WHERE id = ?', [id]);
+        await pool.query('DELETE FROM vendor_banners WHERE id = ?', [id]);
         res.json({ status: true, message: 'Banner deleted successfully' });
     } catch (err) {
         console.error(err);
