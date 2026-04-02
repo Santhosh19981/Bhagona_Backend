@@ -21,7 +21,7 @@ router.get('/vendor/:vendor_id', async (req, res) => {
     const [rows] = await pool.query(`
       SELECT r.*, u.name as customer_name 
       FROM vendor_reviews r 
-      JOIN Users u ON r.customer_id = u.id 
+      JOIN Users u ON r.customer_id = u.user_id 
       WHERE r.vendor_id = ?
       ORDER BY r.created_at DESC
     `, [vendor_id]);

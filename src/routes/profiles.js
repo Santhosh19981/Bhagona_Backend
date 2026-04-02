@@ -17,7 +17,7 @@ const upload = multer({
 router.get("/image/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await db.query("SELECT image FROM Users WHERE id = ?", [id]);
+    const [rows] = await db.query("SELECT image FROM Users WHERE user_id = ?", [id]);
 
     if (rows.length === 0 || !rows[0].image || !rows[0].image.startsWith("data:")) {
       return res.status(404).send("Image not found");
@@ -51,13 +51,13 @@ router.get("/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await db.query(
-      "SELECT id, name, email, mobile, role, isactive, isapproved, address, age, experience, cookingstyle, services, \`describe\`, businessname, image, rating, approvedby, createdAt, updatedAt FROM Users WHERE id = ?",
+      "SELECT user_id, name, email, mobile, role, isactive, isapproved, address, age, experience, cookingstyle, services, \`describe\`, businessname, image, rating, approvedby, createdAt, updatedAt FROM Users WHERE user_id = ?",
       [id]
     );
 
     const user = rows[0];
     const display_url = user.image
-      ? (user.image.startsWith("data:") ? `/profiles/image/${user.id}` : user.image)
+      ? (user.image.startsWith("data:") ? `/profiles/image/${user.user_id}` : user.image)
       : null;
 
     return res.json({ status: true, data: { ...user, display_url } });
@@ -73,14 +73,14 @@ router.get("/user/:id", async (req, res) => {
 router.get("/customers", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, email, mobile, isactive, isapproved, address, image, rating, approvedby, createdAt, updatedAt
+      `SELECT user_id, name, email, mobile, isactive, isapproved, address, image, rating, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 1`
     );
 
     const processedRows = rows.map(row => ({
       ...row,
       display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.id}` : row.image)
+        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
         : null
     }));
 
@@ -97,7 +97,7 @@ router.get("/customers", async (req, res) => {
 router.get("/chefs", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, email, mobile, experience, cookingstyle, services,
+      `SELECT user_id, name, email, mobile, experience, cookingstyle, services,
               isactive, isapproved, address, \`describe\`, image, rating, age, businessname, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 2`
     );
@@ -105,7 +105,7 @@ router.get("/chefs", async (req, res) => {
     const processedRows = rows.map(row => ({
       ...row,
       display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.id}` : row.image)
+        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
         : null
     }));
 
@@ -122,7 +122,7 @@ router.get("/chefs", async (req, res) => {
 router.get("/vendors", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, email, mobile, businessname, isactive, isapproved,
+      `SELECT user_id, name, email, mobile, businessname, isactive, isapproved,
               address, \`describe\`, image, rating, age, experience, cookingstyle, services, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 3`
     );
@@ -130,7 +130,7 @@ router.get("/vendors", async (req, res) => {
     const processedRows = rows.map(row => ({
       ...row,
       display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.id}` : row.image)
+        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
         : null
     }));
 
@@ -155,7 +155,7 @@ router.put("/status/:id", async (req, res) => {
   }
 
   try {
-    await db.query(`UPDATE Users SET isactive = ? WHERE id = ?`, [
+    await db.query(`UPDATE Users SET isactive = ? WHERE user_id = ?`, [
       isactive,
       id,
     ]);
@@ -205,7 +205,7 @@ const updateUserProfile = async (req, res) => {
       SET name = ?, email = ?, mobile = ?, password = ?, address = ?, age = ?, 
           experience = ?, cookingstyle = ?, services = ?, \`describe\` = ?, 
           businessname = ?, image = ?, rating = ?, updatedAt = NOW()
-      WHERE id = ?
+      WHERE user_id = ?
     `;
 
     const values = [
@@ -251,7 +251,7 @@ router.put("/update-vendor/:id", upload.single("image"), updateUserProfile);
 router.delete("/user/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    await db.query("DELETE FROM Users WHERE id = ?", [id]);
+    await db.query("DELETE FROM Users WHERE user_id = ?", [id]);
     return res.json({ status: true, message: "User deleted successfully" });
   } catch (err) {
     console.error("DB Error:", err);

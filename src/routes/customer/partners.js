@@ -8,7 +8,7 @@ const db = require("../../db");
 router.get("/chefs", async (req, res) => {
     try {
         const [rows] = await db.query(
-            `SELECT id, name, email, mobile, experience, cookingstyle, services,
+            `SELECT user_id, name, email, mobile, experience, cookingstyle, services,
               address, \`describe\`, image, rating, age, businessname, createdAt
        FROM Users 
        WHERE role = 2 AND isactive = 1 AND isapproved = 1`
@@ -17,7 +17,7 @@ router.get("/chefs", async (req, res) => {
         const processedRows = rows.map(row => ({
             ...row,
             display_url: row.image
-                ? (row.image.startsWith("data:") ? `/profiles/image/${row.id}` : row.image)
+                ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
                 : null
         }));
 
@@ -36,7 +36,7 @@ router.get("/vendors", async (req, res) => {
     try {
         const { service_id } = req.query;
         let sql = `
-            SELECT id, name, email, mobile, businessname, address, \`describe\`, 
+            SELECT user_id, name, email, mobile, businessname, address, \`describe\`, 
                    image, rating, age, experience, cookingstyle, services, createdAt
             FROM Users 
         `;
@@ -51,10 +51,10 @@ router.get("/vendors", async (req, res) => {
             // Using a broader match and supporting multiple formats
             // Checking both the mapping table and the legacy column
             sql = `
-                SELECT u.id, u.name, u.email, u.mobile, u.businessname, u.address, u.\`describe\`, 
+                SELECT u.user_id, u.name, u.email, u.mobile, u.businessname, u.address, u.\`describe\`, 
                        u.image, u.rating, u.age, u.experience, u.cookingstyle, u.services, u.createdAt
                 FROM Users u
-                LEFT JOIN vendor_service_mappings vsm ON u.id = vsm.vendor_id
+                LEFT JOIN vendor_service_mappings vsm ON u.user_id = vsm.vendor_id
                 WHERE u.role = 3 AND u.isactive = 1 AND u.isapproved = 1 
                   AND (
                     vsm.service_id = ? 
@@ -64,7 +64,7 @@ router.get("/vendors", async (req, res) => {
                     OR u.services LIKE CONCAT(?, ',%')
                     OR u.services LIKE CONCAT('%,', ?)
                   )
-                GROUP BY u.id
+                GROUP BY u.user_id
             `;
             params.push(cleanSid, cleanSid, cleanSid, cleanSid, cleanSid, cleanSid);
         } else {
@@ -82,7 +82,7 @@ router.get("/vendors", async (req, res) => {
         const processedRows = rows.map(row => ({
             ...row,
             display_url: row.image
-                ? (row.image.startsWith("data:") ? `/profiles/image/${row.id}` : row.image)
+                ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
                 : null
         }));
 
