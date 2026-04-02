@@ -61,13 +61,49 @@ router.post('/respond', async (req, res) => {
   }
 });
 
-// Get booking details with items
+// Get booking details with items and status
 router.get('/:id', async (req, res) => {
   const id = Number(req.params.id);
   try {
     const [[booking]] = await pool.query('SELECT * FROM bookings WHERE booking_id = ? LIMIT 1', [id]);
-    const [items] = await pool.query('SELECT bmi.*, mi.name FROM booking_menu_items bmi LEFT JOIN menuitems mi ON bmi.menu_item_id = mi.menu_item_id WHERE bmi.booking_id = ?', [id]);
-    res.json({ booking: booking || null, menu_items: items || [] });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    const [items] = await pool.query('SELECT bmi.*, mi.name FROM booking_menu_items bmi LEFT JOIN menu_items mi ON bmi.menu_item_id = mi.menu_item_id WHERE bmi.booking_id = ?', [id]);
+    const [chefStatus] = await pool.query('SELECT coa.*, u.full_name FROM chef_order_acceptance coa JOIN users u ON coa.chef_user_id = u.user_id WHERE coa.booking_id = ?', [id]);
+    const [vendorStatus] = await pool.query('SELECT voa.*, u.full_name FROM vendor_order_acceptance voa JOIN users u ON voa.vendor_user_id = u.user_id WHERE voa.booking_id = ?', [id]);
+    const [[order]] = await pool.query('SELECT * FROM orders WHERE booking_id = ? LIMIT 1', [id]);
+
+    res.json({ 
+      booking: booking, 
+      menu_items: items || [],
+      chef_status: chefStatus || [],
+      vendor_status: vendorStatus || [],
+      order: order || null
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /partner/:userId -> Get assignments (pending/accepted) for a chef or vendor
+router.get('/partner/:userId', async (req, res) => {
+  const userId = Number(req.params.userId);
+  const role = req.query.role; // 'chef' or 'vendor'
+  if (!userId || !role) return res.status(400).json({ error: 'userId and role required' });
+
+  try {
+    let sql = '';
+    if (role === 'chef') {
+      sql = `SELECT b.*, coa.acceptance_status FROM bookings b JOIN chef_order_acceptance coa ON b.booking_id = coa.booking_id WHERE coa.chef_user_id = ? ORDER BY b.event_date ASC`;
+    } else if (role === 'vendor') {
+      sql = `SELECT b.*, voa.acceptance_status FROM bookings b JOIN vendor_order_acceptance voa ON b.booking_id = voa.booking_id WHERE voa.vendor_user_id = ? ORDER BY b.event_date ASC`;
+    } else {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const [results] = await pool.query(sql, [userId]);
+    res.json({ success: true, data: results });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

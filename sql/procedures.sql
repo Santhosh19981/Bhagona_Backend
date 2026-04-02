@@ -215,12 +215,128 @@ CREATE PROCEDURE RespondToBooking(
   IN p_comments TEXT
 )
 BEGIN
+  DECLARE v_next_user_id INT DEFAULT NULL;
+  DECLARE v_current_status VARCHAR(50);
+
   IF p_role = 'chef' THEN
     UPDATE chef_order_acceptance SET acceptance_status = p_acceptance_status, decision_time = NOW(), comments = p_comments WHERE booking_id = p_booking_id AND chef_user_id = p_user_id;
+    
+    IF p_acceptance_status = 'rejected' THEN
+      -- Try to find next alternate chef
+      SELECT 
+        CASE 
+          WHEN primary_chef_user_id = p_user_id THEN alternate_chef1_user_id
+          WHEN alternate_chef1_user_id = p_user_id THEN alternate_chef2_user_id
+          ELSE NULL 
+        END INTO v_next_user_id
+      FROM chef_bookings WHERE booking_id = p_booking_id;
+
+      IF v_next_user_id IS NOT NULL THEN
+        INSERT INTO chef_order_acceptance (booking_id, chef_user_id, acceptance_status) VALUES (p_booking_id, v_next_user_id, 'pending');
+      ELSE
+        -- No more alternates, use algorithm to find top 5 and pick one (simplified here to pick the top 1 not already tried)
+        CALL AssignTopRatedChef(p_booking_id);
+      END IF;
+    END IF;
+
   ELSEIF p_role = 'vendor' THEN
     UPDATE vendor_order_acceptance SET acceptance_status = p_acceptance_status, decision_time = NOW(), comments = p_comments WHERE booking_id = p_booking_id AND vendor_user_id = p_user_id;
+    
+    IF p_acceptance_status = 'rejected' THEN
+      -- Try to find next alternate vendor
+      SELECT 
+        CASE 
+          WHEN primary_vendor_user_id = p_user_id THEN alternate_vendor1_user_id
+          WHEN alternate_vendor1_user_id = p_user_id THEN alternate_vendor2_user_id
+          ELSE NULL 
+        END INTO v_next_user_id
+      FROM vendor_bookings WHERE booking_id = p_booking_id;
+
+      IF v_next_user_id IS NOT NULL THEN
+        INSERT INTO vendor_order_acceptance (booking_id, vendor_user_id, acceptance_status) VALUES (p_booking_id, v_next_user_id, 'pending');
+      ELSE
+        -- No more alternates, use algorithm
+        CALL AssignTopRatedVendor(p_booking_id);
+      END IF;
+    END IF;
   ELSE
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid role specified';
+  END IF;
+
+  -- Check if both a chef and vendor (if required) have accepted to finalize the order
+  CALL CheckAndFinalizeBooking(p_booking_id);
+END$$
+
+CREATE PROCEDURE AssignTopRatedChef(IN p_booking_id INT)
+BEGIN
+  DECLARE v_new_chef_id INT;
+  
+  -- Logic: Find chef with highest avg rating and most orders who hasn't been tried for this booking
+  -- Joining with reviews (assuming reviews link to booking which link to chef)
+  SELECT u.user_id INTO v_new_chef_id
+  FROM users u
+  JOIN roles r ON u.role_id = r.role_id
+  LEFT JOIN (
+    SELECT coa.chef_user_id, AVG(rev.food_taste_rating + rev.chef_behavior_rating) as avg_rating, COUNT(*) as total_orders
+    FROM chef_order_acceptance coa
+    JOIN reviews rev ON coa.booking_id = rev.booking_id
+    WHERE coa.acceptance_status = 'accepted'
+    GROUP BY coa.chef_user_id
+  ) stats ON u.user_id = stats.chef_user_id
+  WHERE r.role_name = 'chef' AND u.status = 'active'
+    AND u.user_id NOT IN (SELECT chef_user_id FROM chef_order_acceptance WHERE booking_id = p_booking_id)
+  ORDER BY COALESCE(stats.avg_rating, 0) DESC, COALESCE(stats.total_orders, 0) DESC
+  LIMIT 1;
+
+  IF v_new_chef_id IS NOT NULL THEN
+    INSERT INTO chef_order_acceptance (booking_id, chef_user_id, acceptance_status) VALUES (p_booking_id, v_new_chef_id, 'pending');
+  END IF;
+END$$
+
+CREATE PROCEDURE AssignTopRatedVendor(IN p_booking_id INT)
+BEGIN
+  DECLARE v_new_vendor_id INT;
+  
+  SELECT u.user_id INTO v_new_vendor_id
+  FROM users u
+  JOIN roles r ON u.role_id = r.role_id
+  LEFT JOIN (
+    SELECT voa.vendor_user_id, COUNT(*) as total_orders
+    FROM vendor_order_acceptance voa
+    WHERE voa.acceptance_status = 'accepted'
+    GROUP BY voa.vendor_user_id
+  ) stats ON u.user_id = stats.vendor_user_id
+  WHERE r.role_name = 'vendor' AND u.status = 'active'
+    AND u.user_id NOT IN (SELECT vendor_user_id FROM vendor_order_acceptance WHERE booking_id = p_booking_id)
+  ORDER BY COALESCE(stats.total_orders, 0) DESC
+  LIMIT 1;
+
+  IF v_new_vendor_id IS NOT NULL THEN
+    INSERT INTO vendor_order_acceptance (booking_id, vendor_user_id, acceptance_status) VALUES (p_booking_id, v_new_vendor_id, 'pending');
+  END IF;
+END$$
+
+CREATE PROCEDURE CheckAndFinalizeBooking(IN p_booking_id INT)
+BEGIN
+  DECLARE v_chef_accepted INT DEFAULT 0;
+  DECLARE v_vendor_accepted INT DEFAULT 0;
+  DECLARE v_total_value DECIMAL(10,2) DEFAULT 0;
+
+  -- Check if at least one chef has accepted
+  SELECT COUNT(*) INTO v_chef_accepted FROM chef_order_acceptance WHERE booking_id = p_booking_id AND acceptance_status = 'accepted';
+  -- Check if at least one vendor has accepted
+  SELECT COUNT(*) INTO v_vendor_accepted FROM vendor_order_acceptance WHERE booking_id = p_booking_id AND acceptance_status = 'accepted';
+
+  IF v_chef_accepted > 0 AND v_vendor_accepted > 0 THEN
+    UPDATE bookings SET status = 'accepted' WHERE booking_id = p_booking_id;
+    
+    -- Calculate total value from booking_menu_items
+    SELECT SUM(price * quantity) INTO v_total_value FROM booking_menu_items WHERE booking_id = p_booking_id;
+    
+    -- Create order if it doesn't exist
+    INSERT INTO orders (booking_id, order_value, payment_status)
+    VALUES (p_booking_id, v_total_value, 'pending')
+    ON DUPLICATE KEY UPDATE order_value = v_total_value;
   END IF;
 END$$
 
