@@ -58,6 +58,7 @@ router.post('/', async (req, res) => {
           0, 'pending'
         ]
       );
+      // SENDING order_id BACK TO FRONTEND
       res.json({ success: true, booking_id: bookingId, order_id: orderId });
     } else {
       res.json({ success: true, booking_id: null });
