@@ -112,8 +112,8 @@ router.get('/:id', async (req, res) => {
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
     const [items] = await pool.query('SELECT bmi.*, mi.name FROM booking_menu_items bmi LEFT JOIN menu_items mi ON bmi.menu_item_id = mi.menu_item_id WHERE bmi.booking_id = ?', [id]);
-    const [chefStatus] = await pool.query('SELECT coa.*, u.name FROM chef_order_acceptance coa JOIN users u ON coa.chef_user_id = u.user_id WHERE coa.booking_id = ?', [id]);
-    const [vendorStatus] = await pool.query('SELECT voa.*, u.name FROM vendor_order_acceptance voa JOIN users u ON vendor_user_id = u.user_id WHERE voa.booking_id = ?', [id]);
+    const [chefStatus] = await pool.query('SELECT coa.*, u.name FROM chef_order_acceptance coa JOIN Users u ON coa.chef_user_id = u.user_id WHERE coa.booking_id = ?', [id]);
+    const [vendorStatus] = await pool.query('SELECT voa.*, u.name FROM vendor_order_acceptance voa JOIN Users u ON vendor_user_id = u.user_id WHERE voa.booking_id = ?', [id]);
     const [[order]] = await pool.query('SELECT * FROM orders WHERE booking_id = ? LIMIT 1', [id]);
 
     res.json({ 
