@@ -69,14 +69,31 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Add menu item to booking -> AddMenuItemToBooking
+// Add menu item to booking
 router.post('/:bookingId/menu-items', async (req, res) => {
   const bookingId = Number(req.params.bookingId);
-  const { menu_item_id, quantity, price } = req.body;
+  const { menu_item_id, quantity, price, item_name } = req.body;
   if (!bookingId || quantity == null || price == null) return res.status(400).json({ error: 'bookingId, quantity, price required' });
   try {
-    await pool.query('CALL AddMenuItemToBooking(?, ?, ?, ?)', [bookingId, menu_item_id, quantity, price]);
-    
+    // Try stored procedure first, fallback to direct insert
+    try {
+      await pool.query('CALL AddMenuItemToBooking(?, ?, ?, ?)', [bookingId, menu_item_id || null, quantity, price]);
+    } catch (spErr) {
+      // If SP fails (e.g. null menu_item_id constraint), do a direct insert
+      await pool.query(
+        'INSERT INTO booking_menu_items (booking_id, menu_item_id, quantity, price) VALUES (?, ?, ?, ?)',
+        [bookingId, menu_item_id || null, quantity, price]
+      );
+    }
+
+    // If item_name provided, store it in the latest inserted row
+    if (item_name) {
+      await pool.query(
+        `UPDATE booking_menu_items SET item_name = ? WHERE booking_id = ? AND menu_item_id <=> ? ORDER BY id DESC LIMIT 1`,
+        [item_name, bookingId, menu_item_id || null]
+      );
+    }
+
     // Update order_value in orders table
     const itemTotal = quantity * price;
     await pool.query(
@@ -111,7 +128,14 @@ router.get('/:id', async (req, res) => {
     const [[booking]] = await pool.query('SELECT * FROM bookings WHERE booking_id = ? LIMIT 1', [id]);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    const [items] = await pool.query('SELECT bmi.*, mi.name AS item_name FROM booking_menu_items bmi LEFT JOIN menu_items mi ON bmi.menu_item_id = mi.menu_item_id WHERE bmi.booking_id = ?', [id]);
+    const [items] = await pool.query(`
+      SELECT bmi.*, 
+        COALESCE(mi.name, si.name, bmi.item_name, 'Service Item') AS item_name
+      FROM booking_menu_items bmi 
+      LEFT JOIN menu_items mi ON bmi.menu_item_id = mi.menu_item_id
+      LEFT JOIN service_items si ON bmi.menu_item_id = si.service_item_id
+      WHERE bmi.booking_id = ?
+    `, [id]);
     const [chefStatus] = await pool.query('SELECT coa.*, u.name FROM chef_order_acceptance coa JOIN Users u ON coa.chef_user_id = u.user_id WHERE coa.booking_id = ?', [id]);
     const [vendorStatus] = await pool.query('SELECT voa.*, u.name FROM vendor_order_acceptance voa JOIN Users u ON vendor_user_id = u.user_id WHERE voa.booking_id = ?', [id]);
     const [[order]] = await pool.query('SELECT * FROM orders WHERE booking_id = ? LIMIT 1', [id]);
