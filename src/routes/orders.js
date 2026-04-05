@@ -94,7 +94,7 @@ router.get('/customer/:userId', async (req, res) => {
         b.booking_type,
         b.event_date AS date,
         b.total_members AS members,
-        u.full_name AS customer_name,
+        u.name AS customer_name,
         u.email AS customer_email,
         u.mobile AS customer_mobile,
         u.address AS customer_address
