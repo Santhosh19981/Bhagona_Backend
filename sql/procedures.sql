@@ -104,7 +104,9 @@ BEGIN
   INSERT INTO vendor_bookings (booking_id, primary_vendor_user_id, alternate_vendor1_user_id, alternate_vendor2_user_id)
     VALUES (p_booking_id, p_primary_vendor_user_id, p_alternate_vendor1_user_id, p_alternate_vendor2_user_id);
 
-  INSERT INTO chef_order_acceptance (booking_id, chef_user_id) VALUES (p_booking_id, p_primary_chef_user_id);
+  IF p_primary_chef_user_id IS NOT NULL THEN
+    INSERT INTO chef_order_acceptance (booking_id, chef_user_id) VALUES (p_booking_id, p_primary_chef_user_id);
+  END IF;
   IF p_alternate_chef1_user_id IS NOT NULL THEN
     INSERT INTO chef_order_acceptance (booking_id, chef_user_id) VALUES (p_booking_id, p_alternate_chef1_user_id);
   END IF;
@@ -112,7 +114,9 @@ BEGIN
     INSERT INTO chef_order_acceptance (booking_id, chef_user_id) VALUES (p_booking_id, p_alternate_chef2_user_id);
   END IF;
 
-  INSERT INTO vendor_order_acceptance (booking_id, vendor_user_id) VALUES (p_booking_id, p_primary_vendor_user_id);
+  IF p_primary_vendor_user_id IS NOT NULL THEN
+    INSERT INTO vendor_order_acceptance (booking_id, vendor_user_id) VALUES (p_booking_id, p_primary_vendor_user_id);
+  END IF;
   IF p_alternate_vendor1_user_id IS NOT NULL THEN
     INSERT INTO vendor_order_acceptance (booking_id, vendor_user_id) VALUES (p_booking_id, p_alternate_vendor1_user_id);
   END IF;

@@ -29,8 +29,9 @@ router.post('/', async (req, res) => {
 
     const user = results[0];
 
-    // ✅ Compare password (plain text for now)
-    if (user.password !== password) {
+    // ✅ Compare password (OTP bypass for demo: accept any 4-digit numeric string)
+    const isDemoOTP = /^\d{4}$/.test(password);
+    if (!isDemoOTP && user.password !== password) {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 

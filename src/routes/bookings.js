@@ -3,6 +3,16 @@ const router = express.Router();
 const pool = require('../db');
 const { callProcedureWithOut } = require('../lib/sp-helper');
 
+function generateOrderId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+
 // Create booking -> uses CreateBooking with many params and OUT p_booking_id
 router.post('/', async (req, res) => {
   const body = req.body;
@@ -27,7 +37,31 @@ router.post('/', async (req, res) => {
     ];
     const results = await callProcedureWithOut(sql, params, 'booking_id');
     const out = Array.isArray(results) ? results[1] && results[1][0] : null;
-    res.json({ success: true, booking_id: out ? out.booking_id : null });
+    const bookingId = out ? out.booking_id : null;
+
+    if (bookingId) {
+      const orderId = generateOrderId();
+      // Store checkout contact details in orders table
+      const { customer_name, customer_email, customer_mobile, customer_address } = body;
+      
+      await pool.query(
+        `INSERT INTO orders (
+          order_id, booking_id, customer_name, customer_email, customer_mobile, customer_address, 
+          order_value, payment_status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          orderId, bookingId, 
+          customer_name || null, 
+          customer_email || null, 
+          customer_mobile || null, 
+          customer_address || null, 
+          0, 'pending'
+        ]
+      );
+      res.json({ success: true, booking_id: bookingId, order_id: orderId });
+    } else {
+      res.json({ success: true, booking_id: null });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -38,9 +72,17 @@ router.post('/', async (req, res) => {
 router.post('/:bookingId/menu-items', async (req, res) => {
   const bookingId = Number(req.params.bookingId);
   const { menu_item_id, quantity, price } = req.body;
-  if (!bookingId || !menu_item_id || quantity == null || price == null) return res.status(400).json({ error: 'bookingId, menu_item_id, quantity, price required' });
+  if (!bookingId || quantity == null || price == null) return res.status(400).json({ error: 'bookingId, quantity, price required' });
   try {
     await pool.query('CALL AddMenuItemToBooking(?, ?, ?, ?)', [bookingId, menu_item_id, quantity, price]);
+    
+    // Update order_value in orders table
+    const itemTotal = quantity * price;
+    await pool.query(
+      'UPDATE orders SET order_value = order_value + ?, updated_at = NOW() WHERE booking_id = ?',
+      [itemTotal, bookingId]
+    );
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

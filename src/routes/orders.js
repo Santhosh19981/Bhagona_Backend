@@ -19,6 +19,7 @@ router.get('/', async (req, res) => {
         b.total_members AS members
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
+      ORDER BY o.created_at DESC
     `);
     res.json({ data: rows || [] });
   } catch (err) {
@@ -65,6 +66,7 @@ router.get('/by-status/:status', async (req, res) => {
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
       WHERE o.payment_status = ?
+      ORDER BY o.created_at DESC
     `, [status]);
     res.json({ data: rows || [] });
   } catch (err) {
@@ -79,24 +81,44 @@ router.get('/customer/:userId', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT 
-        o.order_id,
+        o.order_id AS id,
         o.booking_id,
-        o.order_value,
+        o.order_value AS amount,
         o.payment_status,
         o.payment_method,
         o.transaction_id,
         o.payment_date,
         o.created_at,
         o.updated_at,
-        b.status as booking_status,
-        b.event_date,
-        b.total_members as members
+        b.status AS status,
+        b.booking_type,
+        b.event_date AS date,
+        b.total_members AS members,
+        u.full_name AS customer_name,
+        u.email AS customer_email,
+        u.mobile AS customer_mobile,
+        u.address AS customer_address
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
+      JOIN Users u ON b.customer_user_id = u.user_id
       WHERE b.customer_user_id = ?
       ORDER BY o.created_at DESC
     `, [userId]);
-    res.json({ data: rows || [] });
+
+    // Map to the structure expected by the frontend
+    const formattedData = rows.map(order => ({
+      ...order,
+      orderType: (order.booking_type === 'chef_booking' || order.booking_type === 'full_event_booking') ? 'event' : 'service',
+      customerDetails: {
+        name: order.customer_name,
+        email: order.customer_email,
+        mobile: order.customer_mobile,
+        address: order.customer_address
+      },
+      data: [] // Placeholder for items if needed
+    }));
+
+    res.json({ data: formattedData });
   } catch (err) {
     console.error(`Error fetching orders for customer ${userId}:`, err);
     res.status(500).json({ error: err.message });
