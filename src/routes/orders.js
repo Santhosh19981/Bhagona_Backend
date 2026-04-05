@@ -16,7 +16,9 @@ router.get('/', async (req, res) => {
         o.payment_date,
         o.created_at,
         o.updated_at,
-        b.total_members AS members
+        b.total_members AS members,
+        b.status AS booking_status,
+        b.event_date
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
       ORDER BY o.created_at DESC
