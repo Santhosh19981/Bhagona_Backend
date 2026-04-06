@@ -41,14 +41,23 @@ router.get("/image/:id", async (req, res) => {
 // ---------------------------------------------------------------
 router.get("/", async (req, res) => {
   try {
-    const sql = `
+    const { search } = req.query;
+    let sql = `
       SELECT si.*, s.name AS service_name
       FROM service_items si
       LEFT JOIN services s ON si.service_id = s.service_id
-      ORDER BY si.service_item_id DESC
     `;
+    const queryParams = [];
 
-    const [rows] = await pool.query(sql);
+    if (search) {
+      sql += ` WHERE si.name LIKE ? OR s.name LIKE ? OR si.description LIKE ? `;
+      const searchPattern = `%${search}%`;
+      queryParams.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    sql += ` ORDER BY si.service_item_id DESC `;
+
+    const [rows] = await pool.query(sql, queryParams);
 
     const processedRows = rows.map(row => ({
       ...row,
