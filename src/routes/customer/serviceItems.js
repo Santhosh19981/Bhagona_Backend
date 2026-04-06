@@ -22,7 +22,12 @@ router.get("/:serviceId", async (req, res) => {
         }
 
         // Fetch service items
-        const { vendor_id } = req.query;
+        let { vendor_id } = req.query;
+        // Safety check for common JS string pitfalls
+        if (vendor_id === 'undefined' || vendor_id === 'null' || !vendor_id) {
+            vendor_id = null;
+        }
+
         let itemSql = `
             SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type, si.price, si.status, si.image_url 
             FROM service_items si
