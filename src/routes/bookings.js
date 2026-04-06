@@ -130,7 +130,7 @@ router.get('/:id', async (req, res) => {
 
     const [items] = await pool.query(`
       SELECT bmi.*, 
-        COALESCE(mi.name, si.name, bmi.item_name, 'Service Item') AS item_name
+        COALESCE(bmi.item_name, mi.name, si.name, 'Service Item') AS item_name
       FROM booking_menu_items bmi 
       LEFT JOIN menu_items mi ON bmi.menu_item_id = mi.menu_item_id
       LEFT JOIN service_items si ON bmi.menu_item_id = si.service_item_id
