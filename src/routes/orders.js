@@ -5,8 +5,10 @@ const pool = require('../db');
 // GET: All orders with members count
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT 
+    const { userId, role } = req.query;
+
+    let sql = `
+      SELECT DISTINCT
         o.order_id,
         o.booking_id,
         o.order_value,
@@ -21,11 +23,31 @@ router.get('/', async (req, res) => {
         b.event_date
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
-      ORDER BY o.created_at DESC
-    `);
+    `;
+
+    const params = [];
+
+    if (role == 3) { // Vendor
+      sql += `
+        LEFT JOIN vendor_bookings vb ON b.booking_id = vb.booking_id
+        LEFT JOIN vendor_order_acceptance voa ON b.booking_id = voa.booking_id
+        WHERE (vb.primary_vendor_user_id = ? 
+           OR vb.alternate_vendor1_user_id = ? 
+           OR vb.alternate_vendor2_user_id = ?
+           OR voa.vendor_user_id = ?)
+      `;
+      params.push(userId, userId, userId, userId);
+    } else if (role == 1) { // Customer
+      sql += ` WHERE b.customer_user_id = ? `;
+      params.push(userId);
+    }
+
+    sql += ` ORDER BY o.created_at DESC `;
+
+    const [rows] = await pool.query(sql, params);
     res.json({ data: rows || [] });
   } catch (err) {
-    console.error('Error fetching all orders with members:', err);
+    console.error('Error fetching filtered orders:', err);
     res.status(500).json({ error: err.message });
   }
 });

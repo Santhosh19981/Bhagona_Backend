@@ -71,7 +71,7 @@ async function seedMegaData() {
       console.log(`👤 Creating Vendor: ${v.name}`);
       const [userRes] = await connection.execute(
         "INSERT INTO Users (name, email, password, role, mobile, businessname, \`describe\`, services, isapproved, isactive, rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [v.name, v.email, '1234', 'vendor', v.mobile, v.business, v.description, v.services, 1, 1, 4.5]
+        [v.name, v.email, '1234', 3, v.mobile, v.business, v.description, v.services, 1, 1, 4.5]
       );
       const userId = userRes.insertId;
 
