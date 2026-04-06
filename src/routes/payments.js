@@ -19,7 +19,7 @@ router.get('/history', async (req, res) => {
         ph.transaction_date AS date,
         ph.description
       FROM payment_history ph
-      LEFT JOIN Users u ON ph.user_id = u.id
+      LEFT JOIN Users u ON ph.user_id = u.user_id
     `;
 
     const params = [];

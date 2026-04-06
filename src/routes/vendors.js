@@ -48,7 +48,7 @@ router.post("/services/sync", async (req, res) => {
 
     // 3. 🟢 SYNC with legacy 'Users' table column
     const servicesStr = service_ids.join(',');
-    await connection.query("UPDATE Users SET services = ? WHERE id = ?", [servicesStr, vendor_id]);
+    await connection.query("UPDATE Users SET services = ? WHERE user_id = ?", [servicesStr, vendor_id]);
 
     await connection.commit();
     res.json({ status: true, message: "Services synced successfully" });
@@ -114,7 +114,7 @@ router.get("/my-setup/:vendor_id", async (req, res) => {
       SELECT s.service_id, s.name, s.description
       FROM services s
       INNER JOIN Users u ON FIND_IN_SET(s.service_id, u.services)
-      WHERE u.id = ?
+      WHERE u.user_id = ?
     `, [vendor_id]);
 
     // Get selected items
@@ -153,7 +153,7 @@ router.get("/services/:vendor_id", async (req, res) => {
               JOIN service_items si ON vim.service_item_id = si.service_item_id
               WHERE vim.vendor_id = ? AND si.service_id = s.service_id) as item_count
       FROM services s
-      LEFT JOIN Users u ON u.id = ?
+      LEFT JOIN Users u ON u.user_id = ?
       LEFT JOIN vendor_service_mappings vsm ON vsm.service_id = s.service_id AND vsm.vendor_id = ?
       WHERE FIND_IN_SET(s.service_id, REPLACE(u.services, ' ', '')) 
          OR vsm.vendor_id IS NOT NULL
