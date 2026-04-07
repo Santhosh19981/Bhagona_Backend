@@ -145,8 +145,13 @@ router.get("/vendors", async (req, res) => {
 // UPDATE isactive STATUS (Activate/Deactivate User)
 // -------------------------------------------------------------
 router.put("/status/:id", async (req, res) => {
-  const { id } = req.params;
+  let { id } = req.params;
   const { isactive } = req.body;
+
+  // Resilience: Fallback to body.user_id if params.id is "undefined" or missing
+  if ((!id || id === "undefined") && req.body.user_id) {
+    id = req.body.user_id;
+  }
 
   if (isactive === undefined) {
     return res
@@ -174,7 +179,12 @@ router.put("/status/:id", async (req, res) => {
 // UPDATE USER PROFILE HANDLER
 // -------------------------------------------------------------
 const updateUserProfile = async (req, res) => {
-  const { id } = req.params;
+  let { id } = req.params;
+  
+  // Resilience: Fallback to body.user_id if params.id is "undefined" or missing
+  if ((!id || id === "undefined") && req.body.user_id) {
+    id = req.body.user_id;
+  }
   const {
     name,
     fullName, // Support both
