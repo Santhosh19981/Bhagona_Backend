@@ -68,6 +68,28 @@ router.put('/set-default/:accountId', async (req, res) => {
     }
 });
 
+// PUT /vendor-accounts/update/:accountId - Update bank account details
+router.put('/update/:accountId', async (req, res) => {
+    try {
+        const { accountId } = req.params;
+        const { bank_name, account_holder_name, account_number, ifsc_code } = req.body;
+
+        if (!bank_name || !account_number || !ifsc_code) {
+            return res.status(400).json({ status: false, message: 'Missing required fields' });
+        }
+
+        await db.query(
+            'UPDATE vendor_bank_accounts SET bank_name = ?, account_holder_name = ?, account_number = ?, ifsc_code = ? WHERE account_id = ?',
+            [bank_name, account_holder_name, account_number, ifsc_code, accountId]
+        );
+
+        res.json({ status: true, message: 'Account updated successfully' });
+    } catch (err) {
+        console.error('Error updating vendor account:', err);
+        res.status(500).json({ status: false, message: 'Database error' });
+    }
+});
+
 // DELETE /vendor-accounts/delete/:accountId - Delete a bank account
 router.delete('/delete/:accountId', async (req, res) => {
     try {
