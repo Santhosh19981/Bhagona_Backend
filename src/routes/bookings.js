@@ -42,20 +42,23 @@ router.post('/', async (req, res) => {
     if (bookingId) {
       const orderId = generateOrderId();
       // Store checkout contact details in orders table
-      const { customer_name, customer_email, customer_mobile, customer_address } = body;
+      const { customer_name, customer_email, customer_mobile, customer_address, payment_method } = body;
       
+      const pMethod = payment_method || 'Online';
+      const pStatus = pMethod === 'COD' ? 'Pending (At Venue)' : 'Awaiting Payment';
+
       await pool.query(
         `INSERT INTO orders (
           order_id, booking_id, customer_name, customer_email, customer_mobile, customer_address, 
-          order_value, payment_status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          order_value, payment_status, payment_method, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
           orderId, bookingId, 
           customer_name || null, 
           customer_email || null, 
           customer_mobile || null, 
           customer_address || null, 
-          0, 'pending'
+          0, pStatus, pMethod
         ]
       );
       // SENDING order_id BACK TO FRONTEND
