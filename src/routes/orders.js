@@ -193,4 +193,61 @@ router.get('/cancelled/:role', async (req, res) => {
 });
 
 
+// GET: Pending payouts for admin
+router.get('/payouts/pending', async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        o.order_id,
+        o.booking_id,
+        o.order_value,
+        o.admin_commission,
+        o.vendor_payout_amount,
+        o.payment_date,
+        b.booking_type,
+        b.event_date,
+        u.name AS vendor_name,
+        vba.bank_name,
+        vba.account_number,
+        vba.ifsc_code,
+        vba.account_holder_name
+      FROM orders o
+      JOIN bookings b ON o.booking_id = b.booking_id
+      -- Join to find the vendor (chef or service vendor)
+      LEFT JOIN (
+          SELECT booking_id, primary_chef_user_id AS vendor_user_id FROM chef_bookings
+          UNION
+          SELECT booking_id, primary_vendor_user_id AS vendor_user_id FROM vendor_bookings
+      ) v_map ON b.booking_id = v_map.booking_id
+      LEFT JOIN Users u ON v_map.vendor_user_id = u.user_id
+      LEFT JOIN vendor_bank_accounts vba ON v_map.vendor_user_id = vba.vendor_user_id AND vba.is_default = TRUE
+      WHERE o.payment_status = 'Paid' AND o.payout_status = 'Pending'
+      ORDER BY o.payment_date ASC
+    `;
+    const [rows] = await pool.query(sql);
+    res.json({ status: true, data: rows || [] });
+  } catch (err) {
+    console.error('Error fetching pending payouts:', err);
+    res.status(500).json({ status: false, error: err.message });
+  }
+});
+
+// POST: Confirm payout
+router.post('/payouts/confirm/:id', async (req, res) => {
+  const orderId = req.params.id;
+  const { transaction_id, notes } = req.body;
+  try {
+    await pool.query(
+      'UPDATE orders SET payout_status = ?, updated_at = NOW() WHERE order_id = ?',
+      ['Completed', orderId]
+    );
+    // Optionally log this in a payout_history table if needed later
+    res.json({ status: true, message: 'Payout confirmed successfully' });
+  } catch (err) {
+    console.error('Error confirming payout:', err);
+    res.status(500).json({ status: false, error: err.message });
+  }
+});
+
 module.exports = router;
+

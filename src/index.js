@@ -27,6 +27,9 @@ const customerPartnersRouter = require("./routes/customer/partners");
 const customerServiceItemsRouter = require("./routes/customer/serviceItems");
 const bannersRouter = require("./routes/banners");
 const offersRouter = require("./routes/offers");
+const razorpayRouter = require("./routes/razorpay_payments");
+const vendorAccountsRouter = require("./routes/vendor_accounts");
+
 
 
 dotenv.config();
@@ -83,6 +86,9 @@ app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
 app.use("/approvals", approvalsRouter);
 app.use("/profiles", profilesRoutes);
+app.use("/razorpay", razorpayRouter);
+app.use("/vendor-accounts", vendorAccountsRouter);
+
 
 // Customer Routes
 app.use("/customer/events", customerEventsRouter);
