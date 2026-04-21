@@ -1,12 +1,12 @@
 const db = require('../src/db');
-async function checkTable() {
+
+async function checkSchema() {
     try {
-        const [rows] = await db.query('DESCRIBE vendor_bank_accounts');
-        console.log('Table Structure:', JSON.stringify(rows, null, 2));
-        process.exit(0);
+        const [rows] = await db.query('DESCRIBE orders');
+        console.log('ORDERS TABLE COLUMNS:', rows.map(r => r.Field));
     } catch (err) {
-        console.error('Error checking table:', err.message);
-        process.exit(1);
+        console.error('SCHEMA ERROR:', err);
     }
 }
-checkTable();
+
+checkSchema();

@@ -6,8 +6,8 @@ const db = require('../db');
 
 // Initialize Razorpay with environment variables
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder'
+    key_id: (process.env.RAZORPAY_KEY_ID || 'rzp_test_SgBxmI3d2kzrUL').trim(),
+    key_secret: (process.env.RAZORPAY_KEY_SECRET || 'C18RjQDbYsbfK0M86AJv3d4b').trim()
 });
 
 // POST /razorpay/create-order - Create a new Razorpay order
@@ -22,7 +22,7 @@ router.post('/create-order', async (req, res) => {
         const options = {
             amount: Math.round(amount * 100), // Razorpay expects amount in paise
             currency: 'INR',
-            receipt: `order_rcpt_${booking_id}`,
+            receipt: `order_rcpt_${booking_id}_${Date.now()}`,
             notes: {
                 booking_id: booking_id,
                 customer_id: customer_id
@@ -32,7 +32,6 @@ router.post('/create-order', async (req, res) => {
         const order = await razorpay.orders.create(options);
 
         // Update the order table with the razorpay_order_id
-        // Using a transaction to ensure database consistency
         await db.query(
             'UPDATE orders SET razorpay_order_id = ?, payment_status = ? WHERE booking_id = ?',
             [order.id, 'Created', booking_id]
@@ -45,8 +44,13 @@ router.post('/create-order', async (req, res) => {
             currency: order.currency
         });
     } catch (err) {
-        console.error('Error creating Razorpay order:', err);
-        res.status(500).json({ status: false, message: 'Razorpay Error', details: err.message });
+        console.error('RAZORPAY ERROR:', err);
+        res.status(500).json({ 
+            status: false, 
+            message: 'Razorpay Error', 
+            details: err.message,
+            error_code: err.code || 'UNKNOWN'
+        });
     }
 });
 
