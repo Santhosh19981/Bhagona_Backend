@@ -29,6 +29,7 @@ const bannersRouter = require("./routes/banners");
 const offersRouter = require("./routes/offers");
 const razorpayRouter = require("./routes/razorpay_payments");
 const vendorAccountsRouter = require("./routes/vendor_accounts");
+const dashboardRouter = require("./routes/dashboard");
 
 
 
@@ -88,6 +89,7 @@ app.use("/approvals", approvalsRouter);
 app.use("/profiles", profilesRoutes);
 app.use("/razorpay", razorpayRouter);
 app.use("/vendor-accounts", vendorAccountsRouter);
+app.use("/dashboard", dashboardRouter);
 
 
 // Customer Routes

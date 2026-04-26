@@ -6,7 +6,7 @@ const db = require('../db'); // mysql2/promise
 // Returns payment history, optionally filtered by transaction_type
 router.get('/history', async (req, res) => {
   try {
-    const { type, q } = req.query;
+    const { type, q, userId } = req.query;
 
     // Base query - join with Users to fetch user name (optional)
     let sql = `
@@ -20,24 +20,25 @@ router.get('/history', async (req, res) => {
         ph.description
       FROM payment_history ph
       LEFT JOIN Users u ON ph.user_id = u.user_id
+      WHERE 1=1
     `;
 
     const params = [];
 
-    if (type && (type === 'Credit' || type === 'Debit')) {
-      sql += ' WHERE ph.transaction_type = ?';
-      params.push(type);
+    if (userId) {
+      sql += ' AND ph.user_id = ?';
+      params.push(userId);
+    }
+
+    if (type && (type.toLowerCase() === 'credit' || type.toLowerCase() === 'debit')) {
+      sql += ' AND ph.transaction_type = ?';
+      params.push(type.toLowerCase());
     }
 
     // simple search across user name, description or payment_id
     if (q && q.trim() !== '') {
       const search = `%${q.trim()}%`;
-      if (params.length === 0) {
-        sql += ' WHERE ';
-      } else {
-        sql += ' AND ';
-      }
-      sql += '(u.name LIKE ? OR ph.description LIKE ? OR ph.payment_id LIKE ?)';
+      sql += ' AND (u.name LIKE ? OR ph.description LIKE ? OR ph.payment_id LIKE ?)';
       params.push(search, search, search);
     }
 
