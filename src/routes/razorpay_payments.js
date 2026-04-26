@@ -59,7 +59,7 @@ router.post('/verify-payment', async (req, res) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, booking_id } = req.body;
 
-        const secret = process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder';
+        const secret = (process.env.RAZORPAY_KEY_SECRET || 'C18RjQDbYsbfK0M86AJv3d4b').trim();
         const body = razorpay_order_id + '|' + razorpay_payment_id;
 
         const expectedSignature = crypto
@@ -68,6 +68,7 @@ router.post('/verify-payment', async (req, res) => {
             .digest('hex');
 
         if (expectedSignature === razorpay_signature) {
+            console.log('Payment Verified for booking:', booking_id);
             // Payment is valid
             const commissionRate = 0.10; // 10% platform fee
             
@@ -96,6 +97,9 @@ router.post('/verify-payment', async (req, res) => {
 
             res.json({ status: true, message: 'Payment verified successfully' });
         } else {
+            console.error('SIGNATURE MISMATCH:');
+            console.error('Expected:', expectedSignature);
+            console.error('Received:', razorpay_signature);
             res.status(400).json({ status: false, message: 'Invalid signature' });
         }
     } catch (err) {
