@@ -134,10 +134,13 @@ router.post('/respond', async (req, res) => {
 // Get booking details with items and status
 router.get('/:id', async (req, res) => {
   const id = Number(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid booking ID' });
+
   try {
     const [[booking]] = await pool.query('SELECT * FROM bookings WHERE booking_id = ? LIMIT 1', [id]);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+    // Fetch ordered items
     const [items] = await pool.query(`
       SELECT bmi.*, 
         COALESCE(bmi.item_name, mi.name, si.name, 'Service Item') AS item_name
@@ -146,19 +149,23 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN service_items si ON bmi.service_item_id = si.service_item_id
       WHERE bmi.booking_id = ?
     `, [id]);
+
+    // Fetch assignment status
     const [chefStatus] = await pool.query('SELECT coa.*, u.name FROM chef_order_acceptance coa JOIN Users u ON coa.chef_user_id = u.user_id WHERE coa.booking_id = ?', [id]);
     const [vendorStatus] = await pool.query('SELECT voa.*, u.name FROM vendor_order_acceptance voa JOIN Users u ON voa.vendor_user_id = u.user_id WHERE voa.booking_id = ?', [id]);
     
-    // Fetch Primary Provider (Chef) if exists
+    // Fetch Primary Providers from normalized tables
     let primaryChef = null;
-    if (booking.primary_chef_user_id) {
-      [[primaryChef]] = await pool.query('SELECT user_id, name, mobile, email, image, businessname, rating FROM Users WHERE user_id = ?', [booking.primary_chef_user_id]);
+    let primaryVendor = null;
+
+    const [[chefInfo]] = await pool.query('SELECT primary_chef_user_id FROM chef_bookings WHERE booking_id = ?', [id]);
+    if (chefInfo && chefInfo.primary_chef_user_id) {
+      [[primaryChef]] = await pool.query('SELECT user_id, name, mobile, email, image, businessname, rating FROM Users WHERE user_id = ?', [chefInfo.primary_chef_user_id]);
     }
 
-    // Fetch Primary Provider (Vendor) if exists
-    let primaryVendor = null;
-    if (booking.primary_vendor_user_id) {
-      [[primaryVendor]] = await pool.query('SELECT user_id, name, mobile, email, image, businessname, rating FROM Users WHERE user_id = ?', [booking.primary_vendor_user_id]);
+    const [[vendorInfo]] = await pool.query('SELECT primary_vendor_user_id FROM vendor_bookings WHERE booking_id = ?', [id]);
+    if (vendorInfo && vendorInfo.primary_vendor_user_id) {
+      [[primaryVendor]] = await pool.query('SELECT user_id, name, mobile, email, image, businessname, rating FROM Users WHERE user_id = ?', [vendorInfo.primary_vendor_user_id]);
     }
 
     const [[order]] = await pool.query('SELECT * FROM orders WHERE booking_id = ? LIMIT 1', [id]);
@@ -173,8 +180,9 @@ router.get('/:id', async (req, res) => {
       order: order || null
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error('API Error /bookings/:id:', err);
+    // On error, we still try to return a valid JSON so the frontend doesn't see a "CORS error"
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 });
 
