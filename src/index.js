@@ -59,7 +59,7 @@ app.use(
       "https://admin.bhagona.in",
       "https://partner.bhagona.in"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   })
 );
