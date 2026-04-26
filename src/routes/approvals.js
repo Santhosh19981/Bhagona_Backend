@@ -7,7 +7,7 @@ const mysql = require("../db"); // mysql2/promise
 // -------------------------------------------------------------
 router.get("/all", async (req, res) => {
   const query = `
-    SELECT id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
     FROM Users
     WHERE role = '2' OR role = '3'
   `;
@@ -34,7 +34,7 @@ router.get("/all", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/pending", async (req, res) => {
   const query = `
-    SELECT id, name, email, role, mobile, experience, businessname, isapproved 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved 
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 0
   `;
@@ -61,7 +61,7 @@ router.get("/pending", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/approved", async (req, res) => {
   const query = `
-    SELECT id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 1
   `;
@@ -88,7 +88,7 @@ router.get("/approved", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/rejected", async (req, res) => {
   const query = `
-    SELECT id, name, email, role, mobile, experience, businessname, isapproved 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved 
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 2
   `;
@@ -115,12 +115,12 @@ router.get("/rejected", async (req, res) => {
 // -------------------------------------------------------------
 router.put("/approve/:id", async (req, res) => {
   const id = req.params.id;
-  const approvedBy = "Admin";
+  const approvedBy = 1;
 
   const query = `
     UPDATE Users 
     SET isapproved = 1, isactive = 1, approvedby = ?
-    WHERE id = ?
+    WHERE user_id = ?
   `;
 
   try {
@@ -149,7 +149,7 @@ router.put("/reject/:id", async (req, res) => {
   const query = `
     UPDATE Users
     SET isapproved = 2, isactive = 0, approvedby = NULL
-    WHERE id = ?
+    WHERE user_id = ?
   `;
 
   try {
