@@ -1,13 +1,13 @@
-const pool = require('./src/db');
+const db = require('./src/db');
 
 async function checkSchema() {
   try {
-    const [rows] = await pool.query("DESCRIBE Users");
-    console.log(JSON.stringify(rows));
-    process.exit(0);
+    const [rows] = await db.query("DESCRIBE bookings");
+    console.log('Bookings Schema:', JSON.stringify(rows, null, 2));
   } catch (err) {
-    console.error(err);
-    process.exit(1);
+    console.error('Error:', err);
+  } finally {
+    process.exit();
   }
 }
 

@@ -165,6 +165,7 @@ router.patch('/:id/status', async (req, res) => {
     if (booking_status) {
       const [[order]] = await connection.query('SELECT booking_id FROM orders WHERE order_id = ?', [orderId]);
       if (order) {
+        console.log('UPDATING BOOKING STATUS:', { booking_id: order.booking_id, new_status: booking_status });
         await connection.query('UPDATE bookings SET status = ?, updated_at = NOW() WHERE booking_id = ?', [booking_status, order.booking_id]);
       }
     }
