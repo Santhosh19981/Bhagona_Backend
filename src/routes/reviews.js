@@ -19,12 +19,18 @@ router.get('/vendor/:vendor_id', async (req, res) => {
   try {
     const { vendor_id } = req.params;
     const [rows] = await pool.query(`
-      SELECT r.*, u.name as customer_name 
-      FROM vendor_reviews r 
-      JOIN Users u ON r.customer_id = u.user_id 
-      WHERE r.vendor_id = ?
+      SELECT 
+        r.*, 
+        u.name as customer_name,
+        (r.hygiene_rating + r.food_taste_rating + r.chef_behavior_rating) / 3 as rating
+      FROM reviews r
+      JOIN Users u ON r.customer_user_id = u.user_id
+      JOIN bookings b ON r.booking_id = b.booking_id
+      LEFT JOIN chef_bookings cb ON b.booking_id = cb.booking_id
+      LEFT JOIN vendor_bookings vb ON b.booking_id = vb.booking_id
+      WHERE cb.primary_chef_user_id = ? OR vb.primary_vendor_user_id = ?
       ORDER BY r.created_at DESC
-    `, [vendor_id]);
+    `, [vendor_id, vendor_id]);
 
     res.json({ status: true, data: rows });
   } catch (err) {
