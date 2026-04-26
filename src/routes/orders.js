@@ -131,10 +131,15 @@ router.get('/customer/:userId', async (req, res) => {
         u.name AS customer_name,
         u.email AS customer_email,
         u.mobile AS customer_mobile,
-        u.address AS customer_address
+        u.address AS customer_address,
+        r.hygiene_rating AS hygiene,
+        r.food_taste_rating AS taste,
+        r.chef_behavior_rating AS behavior,
+        r.comments AS rating_comment
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
       JOIN Users u ON b.customer_user_id = u.user_id
+      LEFT JOIN reviews r ON b.booking_id = r.booking_id
       WHERE b.customer_user_id = ?
       ORDER BY o.created_at DESC
     `, [userId]);
@@ -143,6 +148,12 @@ router.get('/customer/:userId', async (req, res) => {
     const formattedData = rows.map(order => ({
       ...order,
       orderType: (order.booking_type === 'chef_booking' || order.booking_type === 'full_event_booking') ? 'event' : 'service',
+      rating: order.hygiene ? {
+        hygiene: order.hygiene,
+        taste: order.taste,
+        behavior: order.behavior,
+        comment: order.rating_comment
+      } : null,
       customerDetails: {
         name: order.customer_name,
         email: order.customer_email,
