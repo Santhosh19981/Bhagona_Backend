@@ -37,6 +37,16 @@ router.get('/', async (req, res) => {
            OR voa.vendor_user_id = ?)
       `;
       params.push(userId, userId, userId, userId);
+    } else if (role == 2) { // Chef
+      sql += `
+        LEFT JOIN chef_bookings cb ON b.booking_id = cb.booking_id
+        LEFT JOIN chef_order_acceptance coa ON b.booking_id = coa.booking_id
+        WHERE (cb.primary_chef_user_id = ? 
+           OR cb.alternate_chef1_user_id = ? 
+           OR cb.alternate_chef2_user_id = ?
+           OR coa.chef_user_id = ?)
+      `;
+      params.push(userId, userId, userId, userId);
     } else if (role == 1) { // Customer
       sql += ` WHERE b.customer_user_id = ? `;
       params.push(userId);
