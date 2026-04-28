@@ -7,9 +7,10 @@ const mysql = require("../db"); // mysql2/promise
 // -------------------------------------------------------------
 router.get("/all", async (req, res) => {
   const query = `
-    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby, address, age, cookingstyle, \`describe\`, services, image
     FROM Users
     WHERE role = '2' OR role = '3'
+    ORDER BY user_id DESC
   `;
 
   try {
@@ -34,9 +35,10 @@ router.get("/all", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/pending", async (req, res) => {
   const query = `
-    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, address, age, cookingstyle, \`describe\`, services, image
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 0
+    ORDER BY user_id DESC
   `;
 
   try {
@@ -61,9 +63,10 @@ router.get("/pending", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/approved", async (req, res) => {
   const query = `
-    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, approvedby, address, age, cookingstyle, \`describe\`, services, image
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 1
+    ORDER BY user_id DESC
   `;
 
   try {
@@ -88,9 +91,10 @@ router.get("/approved", async (req, res) => {
 // -------------------------------------------------------------
 router.get("/rejected", async (req, res) => {
   const query = `
-    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved 
+    SELECT user_id AS id, name, email, role, mobile, experience, businessname, isapproved, address, age, cookingstyle, \`describe\`, services, image
     FROM Users
     WHERE (role = '2' OR role = '3') AND isapproved = 2
+    ORDER BY user_id DESC
   `;
 
   try {
