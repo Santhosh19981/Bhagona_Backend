@@ -30,6 +30,7 @@ const offersRouter = require("./routes/offers");
 const razorpayRouter = require("./routes/razorpay_payments");
 const vendorAccountsRouter = require("./routes/vendor_accounts");
 const dashboardRouter = require("./routes/dashboard");
+const orderProofsRouter = require("./routes/order_proofs");
 
 
 
@@ -90,6 +91,7 @@ app.use("/profiles", profilesRoutes);
 app.use("/razorpay", razorpayRouter);
 app.use("/vendor-accounts", vendorAccountsRouter);
 app.use("/dashboard", dashboardRouter);
+app.use("/order-proofs", orderProofsRouter);
 
 
 // Customer Routes
