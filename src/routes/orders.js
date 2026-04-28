@@ -20,7 +20,9 @@ router.get('/', async (req, res) => {
         o.updated_at,
         b.total_members AS members,
         b.status AS booking_status,
-        b.event_date
+        b.event_date,
+        b.booking_type,
+        b.service_id
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
     `;
