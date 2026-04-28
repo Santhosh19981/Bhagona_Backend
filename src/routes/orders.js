@@ -22,9 +22,12 @@ router.get('/', async (req, res) => {
         b.status AS booking_status,
         b.event_date,
         b.booking_type,
-        b.service_id
+        b.service_id,
+        u_vendor.services AS vendor_services
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
+      LEFT JOIN vendor_bookings vb ON b.booking_id = vb.booking_id
+      LEFT JOIN Users u_vendor ON vb.primary_vendor_user_id = u_vendor.user_id
     `;
 
     const params = [];
