@@ -140,11 +140,17 @@ router.get('/customer/:userId', async (req, res) => {
         r.hygiene_rating AS hygiene,
         r.food_taste_rating AS taste,
         r.chef_behavior_rating AS behavior,
-        r.comments AS rating_comment
+        r.comments AS rating_comment,
+        u_chef.name AS chef_name,
+        u_vendor.name AS vendor_name
       FROM orders o
       JOIN bookings b ON o.booking_id = b.booking_id
       JOIN Users u ON b.customer_user_id = u.user_id
       LEFT JOIN reviews r ON b.booking_id = r.booking_id
+      LEFT JOIN chef_bookings cb ON b.booking_id = cb.booking_id
+      LEFT JOIN Users u_chef ON cb.primary_chef_user_id = u_chef.user_id
+      LEFT JOIN vendor_bookings vb ON b.booking_id = vb.booking_id
+      LEFT JOIN Users u_vendor ON vb.primary_vendor_user_id = u_vendor.user_id
       WHERE b.customer_user_id = ?
       ORDER BY o.created_at DESC
     `, [userId]);
@@ -152,6 +158,8 @@ router.get('/customer/:userId', async (req, res) => {
     // Map to the structure expected by the frontend
     const formattedData = rows.map(order => ({
       ...order,
+      chef_name: order.chef_name,
+      vendor_name: order.vendor_name,
       orderType: (order.booking_type === 'chef_booking' || order.booking_type === 'full_event_booking') ? 'event' : 'service',
       rating: order.hygiene ? {
         hygiene: order.hygiene,

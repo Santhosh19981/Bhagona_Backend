@@ -1,7 +1,7 @@
 const mysql = require("mysql2/promise");
 require('dotenv').config();
 
-async function check() {
+async function run() {
     const connection = await mysql.createConnection({
         host: process.env.DB_HOST || 'localhost',
         port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
@@ -11,18 +11,16 @@ async function check() {
     });
 
     try {
-        console.log("Columns in orders:");
+        console.log("Altering orders.payment_status to VARCHAR(50)...");
+        await connection.query("ALTER TABLE orders MODIFY COLUMN payment_status VARCHAR(50) DEFAULT 'pending'");
+        console.log("Success! Checking schema again:");
         const [ordersCol] = await connection.query("SHOW COLUMNS FROM orders");
         console.table(ordersCol);
-
-        console.log("Columns in bookings:");
-        const [bookingsCol] = await connection.query("SHOW COLUMNS FROM bookings");
-        console.table(bookingsCol);
     } catch (err) {
-        console.error("Database query error:", err);
+        console.error("Error altering table:", err);
     } finally {
         await connection.end();
     }
 }
 
-check();
+run();
