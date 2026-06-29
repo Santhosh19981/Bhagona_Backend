@@ -16,7 +16,7 @@ router.post('/', async (req, res) => {
   try {
     // ✅ Run query using await
     console.log('🟡 Running SQL query...');
-    const [results] = await db.query(
+    let [results] = await db.query(
       'SELECT * FROM Users WHERE email = ? OR mobile = ? LIMIT 1',
       [username, username]
     );
@@ -24,7 +24,21 @@ router.post('/', async (req, res) => {
     console.log('✅ SQL query completed. Results:', results);
 
     if (!results || results.length === 0) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      const isMobile = /^\d{10}$/.test(username);
+      const isDemoOTP = /^\d{4}$/.test(password);
+      if (isMobile && isDemoOTP) {
+        console.log(`⏳ Auto-registering new customer with mobile: ${username}`);
+        const [insertRes] = await db.query(
+          'INSERT INTO Users (name, mobile, email, password, role, isactive, isapproved) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [`Customer ${username.slice(-4)}`, username, `${username}@bhagona.com`, password, 4, 1, 1]
+        );
+        const [newResults] = await db.query('SELECT * FROM Users WHERE user_id = ? LIMIT 1', [insertRes.insertId]);
+        if (newResults && newResults.length > 0) {
+          results = newResults;
+        }
+      } else {
+        return res.status(401).json({ message: 'Invalid username or password' });
+      }
     }
 
     const user = results[0];
