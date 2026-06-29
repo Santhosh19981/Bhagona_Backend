@@ -56,6 +56,9 @@ app.use(
     origin: [
       "http://localhost:4200",
       "http://localhost:4201",
+      "http://localhost",
+      "capacitor://localhost",
+      "http://localhost:8080",
       "https://bhagona.in",
       "https://admin.bhagona.in",
       "https://partner.bhagona.in"
