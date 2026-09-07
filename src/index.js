@@ -34,7 +34,9 @@ const orderProofsRouter = require("./routes/order_proofs");
 
 
 
-dotenv.config();
+const envFile = process.env.ENV_FILE || (process.env.NODE_ENV === 'production' ? '.env.production' : (process.env.NODE_ENV === 'qa' ? '.env.qa' : '.env'));
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+console.log(`[Config] Loaded environment file: ${envFile} (NODE_ENV=${process.env.NODE_ENV || 'default'})`);
 const app = express();
 
 // Middleware
@@ -50,27 +52,63 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS
+// CORS Configuration
+const allowedOrigins = [
+  // Local Development
+  "http://localhost:4200",
+  "http://localhost:4201",
+  "http://localhost:4202",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost",
+  "http://localhost:8080",
+  "capacitor://localhost",
+  // Production Environment
+  "https://bhagona.in",
+  "https://www.bhagona.in",
+  "https://admin.bhagona.in",
+  "https://partner.bhagona.in",
+  "https://api.bhagona.in",
+  // QA / Testing Environment
+  "https://qa.bhagona.in",
+  "https://qa-admin.bhagona.in",
+  "https://qa-partner.bhagona.in",
+  "https://qa-api.bhagona.in"
+];
+
+// Add any extra origins defined in process.env.CORS_ORIGINS (comma-separated)
+if (process.env.CORS_ORIGINS) {
+  process.env.CORS_ORIGINS.split(",").forEach(origin => {
+    const trimmed = origin.trim();
+    if (trimmed && !allowedOrigins.includes(trimmed)) {
+      allowedOrigins.push(trimmed);
+    }
+  });
+}
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:4200",
-      "http://localhost:4201",
-      "http://localhost",
-      "capacitor://localhost",
-      "http://localhost:8080",
-      "https://bhagona.in",
-      "https://admin.bhagona.in",
-      "https://partner.bhagona.in"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
 );
 
-// Test route
+// Test & Health route
 app.get("/", (req, res) => {
-  res.status(200).json({ message: "Backend connected successfully!" });
+  res.status(200).json({
+    message: "Bhagona Backend API connected successfully!",
+    environment: process.env.NODE_ENV || "development",
+    database: process.env.DB_NAME || "default",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Routes

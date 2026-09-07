@@ -5,7 +5,11 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "start:prod": "node -r dotenv/config src/index.js dotenv_config_path=.env.production",
+    "start:qa": "node -r dotenv/config src/index.js dotenv_config_path=.env.qa",
+    "dev": "nodemon src/index.js",
+    "dev:qa": "node -r dotenv/config ./node_modules/nodemon/bin/nodemon.js src/index.js dotenv_config_path=.env.qa",
+    "clone:db": "node clone_db.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
