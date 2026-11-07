@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const multer = require("multer");
+const { cleanRequest } = require("../lib/validation");
 const path = require("path");
+const { serveImage, selectColumns, proxify, resolveExistingImage } = require("../lib/imageProxy");
 
 // Multer config for Base64 (memory storage)
 const storage = multer.memoryStorage();
@@ -10,37 +12,14 @@ const upload = multer({ storage });
 
 
 // ---------------------- SERVE IMAGE FROM DB (PROXY) -------------------
-router.get("/image/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [rows] = await pool.query("SELECT image_url FROM menu_items WHERE menu_item_id = ?", [id]);
-
-    if (rows.length === 0 || !rows[0].image_url || !rows[0].image_url.startsWith("data:")) {
-      return res.status(404).send("Image not found");
-    }
-
-    const base64Data = rows[0].image_url;
-    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-    if (!matches || matches.length !== 3) {
-      return res.status(400).send("Invalid image data");
-    }
-
-    res.set("Content-Type", matches[1]);
-    res.send(Buffer.from(matches[2], "base64"));
-
-  } catch (err) {
-    console.error("❌ Image serve error:", err);
-    res.status(500).send("Error serving image");
-  }
-});
+router.get("/image/:id", serveImage({ table: "menu_items", column: "image_url", idColumn: "menu_item_id", label: "Image" }));
 
 
 // ---------------------- GET ALL MENU ITEMS ----------------------
 router.get("/", async (req, res) => {
   try {
     const sql = `
-      SELECT mi.*, mc.name as category_name, ms.name as subcategory_name
+      SELECT ${await selectColumns("menu_items", "mi", ["image_url"])}, mc.name as category_name, ms.name as subcategory_name
       FROM menu_items mi
       LEFT JOIN menu_category mc ON mi.menu_category_id = mc.id
       LEFT JOIN menu_subcategory ms ON mi.menu_subcategory_id = ms.id
@@ -48,12 +27,7 @@ router.get("/", async (req, res) => {
     `;
     const [rows] = await pool.query(sql);
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image_url
-        ? (row.image_url.startsWith("data:") ? `/menu-items/image/${row.menu_item_id}` : row.image_url)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image_url", idField: "menu_item_id", route: "/menu-items" });
 
     return res.json({
       status: "success",
@@ -75,7 +49,7 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const sql = `
-      SELECT mi.*, mc.name as category_name, ms.name as subcategory_name
+      SELECT ${await selectColumns("menu_items", "mi", ["image_url"])}, mc.name as category_name, ms.name as subcategory_name
       FROM menu_items mi
       LEFT JOIN menu_category mc ON mi.menu_category_id = mc.id
       LEFT JOIN menu_subcategory ms ON mi.menu_subcategory_id = ms.id
@@ -87,13 +61,7 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ status: "error", message: "Menu item not found" });
     }
 
-    const item = rows[0];
-    const processedItem = {
-      ...item,
-      display_url: item.image_url
-        ? (item.image_url.startsWith("data:") ? `/menu-items/image/${item.menu_item_id}` : item.image_url)
-        : null
-    };
+    const processedItem = proxify(rows[0], req, { field: "image_url", idField: "menu_item_id", route: "/menu-items" });
 
     return res.json({
       status: "success",
@@ -111,7 +79,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // ---------------------- CREATE MENU ITEM ----------------------
-router.post("/create", upload.single("image"), async (req, res) => {
+router.post("/create", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { name, description, price, menu_category_id, menu_subcategory_id, status } = req.body;
 
@@ -157,7 +125,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 });
 
 // ---------------------- UPDATE MENU ITEM ----------------------
-router.put("/update/:id", upload.single("image"), async (req, res) => {
+router.put("/update/:id", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, price, existingImage, menu_category_id, menu_subcategory_id, status } = req.body;
@@ -171,7 +139,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-      : existingImage || null;
+      : (await resolveExistingImage(existingImage, { table: "menu_items", column: "image_url", idColumn: "menu_item_id", id })) || null;
 
     const sql = `
       UPDATE menu_items

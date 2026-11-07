@@ -1,21 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../../db");
+const { blobSafe, proxify } = require("../../lib/imageProxy");
 
 // ---------------------- GET ALL ACTIVE EVENTS ----------------------
 // URL: GET /customer/events/
 router.get("/", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            "SELECT event_id, name, description, image_url FROM events WHERE status = 'active' ORDER BY event_id DESC"
+            `SELECT event_id, name, description, ${blobSafe("image_url", "image_url")} FROM events WHERE status = 'active' ORDER BY event_id DESC`
         );
 
-        const processedRows = rows.map(row => ({
-            ...row,
-            display_url: row.image_url && row.image_url.startsWith("data:")
-                ? `/events/image/${row.event_id}`
-                : row.image_url
-        }));
+        const processedRows = proxify(rows, req, { field: "image_url", idField: "event_id", route: "/events" });
 
         return res.json({
             status: "success",
@@ -38,7 +34,7 @@ router.get("/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const [rows] = await pool.query(
-            "SELECT event_id, name, description, image_url FROM events WHERE event_id = ? AND status = 'active'",
+            `SELECT event_id, name, description, ${blobSafe("image_url", "image_url")} FROM events WHERE event_id = ? AND status = 'active'`,
             [id]
         );
 
@@ -50,9 +46,7 @@ router.get("/:id", async (req, res) => {
         }
 
         const event = rows[0];
-        event.display_url = event.image_url && event.image_url.startsWith("data:")
-            ? `/events/image/${event.event_id}`
-            : event.image_url;
+        proxify(event, req, { field: "image_url", idField: "event_id", route: "/events" });
 
         return res.json({
             status: "success",

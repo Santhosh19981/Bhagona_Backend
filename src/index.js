@@ -39,9 +39,23 @@ dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 console.log(`[Config] Loaded environment file: ${envFile} (NODE_ENV=${process.env.NODE_ENV || 'default'})`);
 const app = express();
 
+// Trust nginx so req.protocol / host reflect the public URL (used for image URLs)
+app.set("trust proxy", true);
+
+// Gzip JSON responses (optional dependency: server still starts if it is not installed)
+try {
+  const compression = require("compression");
+  app.use(compression({ threshold: 1024 }));
+} catch (e) {
+  console.warn("[Perf] 'compression' not installed - responses will not be gzipped. Run npm install.");
+}
+
 // Middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Normalise "undefined" / "null" placeholder values in body & query
+app.use(require("./lib/validation").cleanRequest);
 
 // Serve static files from uploads folder
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

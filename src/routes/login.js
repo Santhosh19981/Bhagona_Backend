@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
       if (isMobile && isDemoOTP) {
         console.log(`⏳ Auto-registering new customer with mobile: ${username}`);
         const [insertRes] = await db.query(
-          'INSERT INTO Users (name, mobile, email, password, role, isactive, isapproved) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO Users (name, mobile, email, password, role, isactive, isapproved, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
           [`Customer ${username.slice(-4)}`, username, `${username}@bhagona.com`, password, 4, 1, 1]
         );
         const [newResults] = await db.query('SELECT * FROM Users WHERE user_id = ? LIMIT 1', [insertRes.insertId]);

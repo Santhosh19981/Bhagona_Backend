@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const multer = require("multer");
+const { cleanRequest } = require("../lib/validation");
 const path = require("path");
+const { serveImage, selectColumns, proxify, resolveExistingImage } = require("../lib/imageProxy");
 
 // Multer config for Base64 (memory storage)
 const storage = multer.memoryStorage();
@@ -10,30 +12,7 @@ const upload = multer({ storage });
 
 
 // ---------------------- SERVE IMAGE FROM DB (PROXY) -------------------
-router.get("/image/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [rows] = await pool.query("SELECT image_url FROM service_items WHERE service_item_id = ?", [id]);
-
-    if (rows.length === 0 || !rows[0].image_url || !rows[0].image_url.startsWith("data:")) {
-      return res.status(404).send("Image not found");
-    }
-
-    const base64Data = rows[0].image_url;
-    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-    if (!matches || matches.length !== 3) {
-      return res.status(400).send("Invalid image data");
-    }
-
-    res.set("Content-Type", matches[1]);
-    res.send(Buffer.from(matches[2], "base64"));
-
-  } catch (err) {
-    console.error("❌ Image serve error:", err);
-    res.status(500).send("Error serving image");
-  }
-});
+router.get("/image/:id", serveImage({ table: "service_items", column: "image_url", idColumn: "service_item_id", label: "Service item image" }));
 
 
 // ---------------------------------------------------------------
@@ -43,7 +22,7 @@ router.get("/", async (req, res) => {
   try {
     const { search } = req.query;
     let sql = `
-      SELECT si.*, s.name AS service_name
+      SELECT ${await selectColumns("service_items", "si", ["image_url"])}, s.name AS service_name
       FROM service_items si
       LEFT JOIN services s ON si.service_id = s.service_id
     `;
@@ -59,12 +38,7 @@ router.get("/", async (req, res) => {
 
     const [rows] = await pool.query(sql, queryParams);
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image_url
-        ? (row.image_url.startsWith("data:") ? `/service-items/image/${row.service_item_id}` : row.image_url)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image_url", idField: "service_item_id", route: "/service-items" });
 
     res.json({
       status: "success",
@@ -84,7 +58,7 @@ router.get("/", async (req, res) => {
 // ---------------------------------------------------------------
 // 🔵 CREATE SERVICE ITEM
 // ---------------------------------------------------------------
-router.post("/create", upload.single("image"), async (req, res) => {
+router.post("/create", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { service_id, name, description, quantity_type, price, status } = req.body;
 
@@ -132,7 +106,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 // ---------------------------------------------------------------
 // 🔵 UPDATE SERVICE ITEM
 // ---------------------------------------------------------------
-router.put("/update/:id", upload.single("image"), async (req, res) => {
+router.put("/update/:id", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -154,7 +128,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-      : existingImage || null;
+      : (await resolveExistingImage(existingImage, { table: "service_items", column: "image_url", idColumn: "service_item_id", id })) || null;
 
     const sql = `
       UPDATE service_items

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const multer = require('multer');
+const { cleanRequest } = require('../lib/validation');
 
 // Memory storage — store as Base64 (same pattern used across all routes)
 const storage = multer.memoryStorage();
@@ -44,7 +45,7 @@ router.get('/:orderId', async (req, res) => {
 });
 
 // ── POST /api/order-proofs/:orderId/upload ── upload up to 10 images at once ──
-router.post('/:orderId/upload', upload.array('images', 10), async (req, res) => {
+router.post('/:orderId/upload', upload.array('images', 10), cleanRequest, async (req, res) => {
   const { orderId } = req.params;
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: 'No images provided' });

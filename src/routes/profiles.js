@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db"); // mysql2/promise
 const multer = require("multer");
+const { cleanRequest } = require("../lib/validation");
 const path = require("path");
+const { serveImage, blobSafe, proxify, resolveExistingImage } = require("../lib/imageProxy");
 
 // Multer config for Base64 (memory storage)
 const storage = multer.memoryStorage();
@@ -14,35 +16,7 @@ const upload = multer({
 // -------------------------------------------------------------
 // SERVE USER IMAGE FROM DB
 // -------------------------------------------------------------
-router.get("/image/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [rows] = await db.query("SELECT image FROM Users WHERE user_id = ?", [id]);
-
-    if (rows.length === 0 || !rows[0].image || !rows[0].image.startsWith("data:")) {
-      return res.status(404).send("Image not found");
-    }
-
-    const base64Data = rows[0].image;
-    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-    if (!matches || matches.length !== 3) {
-      return res.status(400).send("Invalid image data");
-    }
-
-    const response = {
-      type: matches[1],
-      data: Buffer.from(matches[2], "base64")
-    };
-
-    res.set("Content-Type", response.type);
-    res.send(response.data);
-
-  } catch (err) {
-    console.error("❌ Image serve error:", err);
-    res.status(500).send("Error serving image");
-  }
-});
+router.get("/image/:id", serveImage({ table: "Users", column: "image", idColumn: "user_id", label: "Image" }));
 
 // -------------------------------------------------------------
 // GET SINGLE USER BY ID
@@ -73,16 +47,11 @@ router.get("/user/:id", async (req, res) => {
 router.get("/customers", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT user_id, name, email, mobile, isactive, isapproved, address, image, rating, approvedby, createdAt, updatedAt
+      `SELECT user_id, name, email, mobile, isactive, isapproved, address, ${blobSafe("image", "image")}, rating, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 1`
     );
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image", idField: "user_id", route: "/profiles" });
 
     return res.json({ status: true, data: processedRows });
   } catch (err) {
@@ -98,16 +67,11 @@ router.get("/chefs", async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT user_id, name, email, mobile, experience, cookingstyle, services,
-              isactive, isapproved, address, \`describe\`, image, rating, age, businessname, approvedby, createdAt, updatedAt
+              isactive, isapproved, address, \`describe\`, ${blobSafe("image", "image")}, rating, age, businessname, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 2`
     );
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image", idField: "user_id", route: "/profiles" });
 
     return res.json({ status: true, data: processedRows });
   } catch (err) {
@@ -123,16 +87,11 @@ router.get("/vendors", async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT user_id, name, email, mobile, businessname, isactive, isapproved,
-              address, \`describe\`, image, rating, age, experience, cookingstyle, services, approvedby, createdAt, updatedAt
+              address, \`describe\`, ${blobSafe("image", "image")}, rating, age, experience, cookingstyle, services, approvedby, createdAt, updatedAt
        FROM Users WHERE role = 3`
     );
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image
-        ? (row.image.startsWith("data:") ? `/profiles/image/${row.user_id}` : row.image)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image", idField: "user_id", route: "/profiles" });
 
     return res.json({ status: true, data: processedRows });
   } catch (err) {
@@ -208,20 +167,23 @@ const updateUserProfile = async (req, res) => {
   try {
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-      : existingImage;
+      : (await resolveExistingImage(existingImage, { table: "Users", column: "image", idColumn: "user_id", id })) || null;
 
     const sql = `
       UPDATE Users 
-      SET name = ?, email = ?, mobile = ?, password = ?, address = ?, age = ?, 
+      SET name = COALESCE(NULLIF(?, ''), name), email = COALESCE(NULLIF(?, ''), email),
+          mobile = COALESCE(NULLIF(?, ''), mobile), password = COALESCE(NULLIF(?, ''), password),
+          address = ?, age = ?, 
           experience = ?, cookingstyle = ?, services = ?, \`describe\` = ?, 
-          businessname = ?, image = ?, rating = ?, updatedAt = NOW()
+          businessname = ?, image = COALESCE(NULLIF(?, ''), image), rating = ?, updatedAt = NOW()
       WHERE user_id = ?
     `;
 
     const values = [
-      name || fullName,
-      email,
-      mobile,
+      // Blank identity fields / image keep the stored value (never wipe a password or email)
+      name || fullName || null,
+      email || null,
+      mobile || null,
       password || null,
       address,
       age || null,
@@ -251,9 +213,9 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
-router.put("/user/:id", upload.single("image"), updateUserProfile);
-router.put("/update-chef/:id", upload.single("image"), updateUserProfile);
-router.put("/update-vendor/:id", upload.single("image"), updateUserProfile);
+router.put("/user/:id", upload.single("image"), cleanRequest, updateUserProfile);
+router.put("/update-chef/:id", upload.single("image"), cleanRequest, updateUserProfile);
+router.put("/update-vendor/:id", upload.single("image"), cleanRequest, updateUserProfile);
 
 // -------------------------------------------------------------
 // DELETE USER

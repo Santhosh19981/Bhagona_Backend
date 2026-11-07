@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../../db");
+const { blobSafe, proxify } = require("../../lib/imageProxy");
 
 // ---------------------- GET SERVICE DETAILS AND ITEMS BY SERVICE ID ----------------------
 // URL: GET /customer/service-items/:serviceId
@@ -10,7 +11,7 @@ router.get("/:serviceId", async (req, res) => {
 
         // Fetch service info
         const [serviceRows] = await pool.query(
-            "SELECT service_id, name, description, unit_id, image_data FROM services WHERE service_id = ? AND status = 'active'",
+            `SELECT service_id, name, description, unit_id, ${blobSafe("image_data", "image_data")} FROM services WHERE service_id = ? AND status = 'active'`,
             [serviceId]
         );
 
@@ -29,7 +30,7 @@ router.get("/:serviceId", async (req, res) => {
         }
 
         let itemSql = `
-            SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type, si.price, si.status, si.image_url 
+            SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type, si.price, si.status, ${blobSafe("si.image_url", "image_url")} 
             FROM service_items si
         `;
         let itemParams = [serviceId];
@@ -54,17 +55,10 @@ router.get("/:serviceId", async (req, res) => {
         const service = serviceRows[0];
 
         // Process service image_data to display_url
-        service.display_url = service.image_data
-            ? (service.image_data.toString().startsWith("data:") ? `/services/image/${service.service_id}` : service.image_data)
-            : null;
+        proxify(service, req, { field: "image_data", idField: "service_id", route: "/services" });
 
         // Process service items image_url to display_url
-        const processedItems = itemRows.map(item => ({
-            ...item,
-            display_url: item.image_url
-                ? (item.image_url.toString().startsWith("data:") ? `/service-items/image/${item.service_item_id}` : item.image_url)
-                : null
-        }));
+        const processedItems = proxify(itemRows, req, { field: "image_url", idField: "service_item_id", route: "/service-items" });
 
         return res.json({
             status: "success",

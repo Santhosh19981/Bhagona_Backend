@@ -1,21 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../../db");
+const { blobSafe, proxify } = require("../../lib/imageProxy");
 
 // ---------------------- GET ALL ACTIVE SERVICES ----------------------
 // URL: GET /customer/services/
 router.get("/", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            "SELECT service_id, name, description, unit_id, image_data FROM services WHERE status = 'active' ORDER BY service_id DESC"
+            `SELECT service_id, name, description, unit_id, ${blobSafe("image_data", "image_data")} FROM services WHERE status = 'active' ORDER BY service_id DESC`
         );
 
-        const processedRows = rows.map(row => ({
-            ...row,
-            display_url: row.image_data
-                ? (row.image_data.startsWith("data:") ? `/services/image/${row.service_id}` : row.image_data)
-                : null
-        }));
+        const processedRows = proxify(rows, req, { field: "image_data", idField: "service_id", route: "/services" });
 
         return res.json({
             status: "success",
@@ -40,7 +36,7 @@ router.get("/:id", async (req, res) => {
 
         // Fetch service info with aliased names
         const [serviceRows] = await pool.query(
-            "SELECT service_id, name AS service_name, description AS service_description, unit_id, image_data FROM services WHERE service_id = ? AND status = 'active'",
+            `SELECT service_id, name AS service_name, description AS service_description, unit_id, ${blobSafe("image_data", "image_data")} FROM services WHERE service_id = ? AND status = 'active'`,
             [id]
         );
 
@@ -53,22 +49,15 @@ router.get("/:id", async (req, res) => {
 
         // Fetch service items
         const [itemRows] = await pool.query(
-            "SELECT service_item_id, name, description, quantity_type, price, image_url FROM service_items WHERE service_id = ? ORDER BY service_item_id ASC",
+            `SELECT service_item_id, name, description, quantity_type, price, ${blobSafe("image_url", "image_url")} FROM service_items WHERE service_id = ? ORDER BY service_item_id ASC`,
             [id]
         );
 
         const service = serviceRows[0];
-        service.display_url = service.image_data
-            ? (service.image_data.startsWith("data:") ? `/services/image/${service.service_id}` : service.image_data)
-            : null;
+        proxify(service, req, { field: "image_data", idField: "service_id", route: "/services" });
 
         // Note: service_items image_url also needs proxying if they are base64
-        const processedItems = itemRows.map(item => ({
-            ...item,
-            display_url: item.image_url
-                ? (item.image_url.startsWith("data:") ? `/service-items/image/${item.service_item_id}` : item.image_url)
-                : null
-        }));
+        const processedItems = proxify(itemRows, req, { field: "image_url", idField: "service_item_id", route: "/service-items" });
 
         return res.json({
             status: "success",

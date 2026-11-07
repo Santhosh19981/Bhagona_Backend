@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const multer = require("multer");
+const { cleanRequest } = require("../lib/validation");
 const path = require("path");
+const { serveImage, selectColumns, proxify, resolveExistingImage } = require("../lib/imageProxy");
 
 // Multer config for Base64 (memory storage)
 const storage = multer.memoryStorage();
@@ -11,49 +13,16 @@ const upload = multer({ storage });
 
 // ---------------------- SERVE IMAGE FROM DB -------------------
 // This allows you to have a real URL that works on Vercel
-router.get("/image/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [rows] = await pool.query("SELECT image_url FROM events WHERE event_id = ?", [id]);
-
-    if (rows.length === 0 || !rows[0].image_url || !rows[0].image_url.startsWith("data:")) {
-      return res.status(404).send("Image not found");
-    }
-
-    const base64Data = rows[0].image_url;
-    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-    if (!matches || matches.length !== 3) {
-      return res.status(400).send("Invalid image data");
-    }
-
-    const response = {
-      type: matches[1],
-      data: Buffer.from(matches[2], "base64")
-    };
-
-    res.set("Content-Type", response.type);
-    res.send(response.data);
-
-  } catch (err) {
-    console.error("❌ Image serve error:", err);
-    res.status(500).send("Error serving image");
-  }
-});
+router.get("/image/:id", serveImage({ table: "events", column: "image_url", idColumn: "event_id", label: "Image" }));
 
 
 // ---------------------- GET ALL EVENTS ----------------------
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM events ORDER BY event_id DESC");
+    const [rows] = await pool.query(`SELECT ${await selectColumns("events", "", ["image_url"])} FROM events ORDER BY event_id DESC`);
 
-    // Use display_url for proxy, or raw URL if it's already a full link
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image_url
-        ? (row.image_url.startsWith("data:") ? `/events/image/${row.event_id}` : row.image_url)
-        : null
-    }));
+    // image_url / display_url are versioned proxy URLs (or the raw URL if already a link)
+    const processedRows = proxify(rows, req, { field: "image_url", idField: "event_id", route: "/events" });
 
     return res.json({
       status: "success",
@@ -72,7 +41,7 @@ router.get("/", async (req, res) => {
 
 
 // ---------------------- CREATE EVENT ----------------------
-router.post("/create", upload.single("image"), async (req, res) => {
+router.post("/create", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { name, description, status } = req.body;
 
@@ -110,7 +79,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 
 
 // ---------------------- UPDATE EVENT ----------------------
-router.put("/update/:id", upload.single("image"), async (req, res) => {
+router.put("/update/:id", upload.single("image"), cleanRequest, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, status, existingImage } = req.body;
@@ -124,7 +93,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
     const imageUrl = req.file
       ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-      : existingImage;
+      : (await resolveExistingImage(existingImage, { table: "events", column: "image_url", idColumn: "event_id", id })) || null;
 
     const sql = `
       UPDATE events 

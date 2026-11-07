@@ -2,41 +2,21 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const multer = require("multer");
+const { cleanRequest } = require("../lib/validation");
+const { serveImage, selectColumns, proxify, resolveExistingImage } = require("../lib/imageProxy");
 
 // Multer config for Base64 (memory storage)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ---------------------- SERVE IMAGE FROM DB (PROXY) -------------------
-router.get("/image/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const [rows] = await pool.query("SELECT image FROM menu_subcategory WHERE id = ?", [id]);
-
-        if (rows.length === 0 || !rows[0].image || !rows[0].image.startsWith("data:")) {
-            return res.status(404).send("Image not found");
-        }
-
-        const base64Data = rows[0].image;
-        const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-
-        if (!matches || matches.length !== 3) {
-            return res.status(400).send("Invalid image data");
-        }
-
-        res.set("Content-Type", matches[1]);
-        res.send(Buffer.from(matches[2], "base64"));
-
-    } catch (err) {
-        console.error("❌ Subcategory image serve error:", err);
-        res.status(500).send("Error serving image");
-    }
-});
+router.get("/image/:id", serveImage({ table: "menu_subcategory", column: "image", idColumn: "id", label: "Subcategory image" }));
 
 // ---------------------- GET ALL SUBCATEGORIES ----------------------
 router.get("/", async (req, res) => {
     try {
-        const [subcategories] = await pool.query("SELECT * FROM menu_subcategory ORDER BY id DESC");
+        const [subcategories] = await pool.query(`SELECT ${await selectColumns("menu_subcategory", "", ["image"])} FROM menu_subcategory ORDER BY id DESC`);
+        proxify(subcategories, req, { field: "image", idField: "id", route: "/menu-subcategories", displayField: null });
 
         const [mappings] = await pool.query(`
             SELECT m.subcategory_id, m.category_id, c.name as category_name 
@@ -44,19 +24,18 @@ router.get("/", async (req, res) => {
             JOIN menu_category c ON m.category_id = c.id
         `);
 
-        const result = subcategories.map(s => {
-            const categories = mappings
-                .filter(m => m.subcategory_id === s.id)
-                .map(m => ({ id: m.category_id, name: m.category_name }));
+        // Group mappings once (O(n)) instead of filtering per subcategory
+        const bySub = new Map();
+        for (const m of mappings) {
+            if (!bySub.has(m.subcategory_id)) bySub.set(m.subcategory_id, []);
+            bySub.get(m.subcategory_id).push({ id: m.category_id, name: m.category_name });
+        }
 
-            return {
-                ...s,
-                categories,
-                display_url: s.image
-                    ? (s.image.startsWith("data:") ? `/menu-subcategories/image/${s.id}` : s.image)
-                    : null
-            };
-        });
+        const result = subcategories.map(s => ({
+            ...s,
+            categories: bySub.get(s.id) || [],
+            display_url: s.image || null
+        }));
 
         res.json({
             status: "success",
@@ -74,7 +53,7 @@ router.get("/category/:categoryId", async (req, res) => {
     try {
         const { categoryId } = req.params;
         const sql = `
-            SELECT s.* 
+            SELECT ${await selectColumns("menu_subcategory", "s", ["image"])}
             FROM menu_subcategory s
             JOIN menu_category_subcategory_mapping m ON s.id = m.subcategory_id
             WHERE m.category_id = ?
@@ -82,12 +61,7 @@ router.get("/category/:categoryId", async (req, res) => {
         `;
         const [rows] = await pool.query(sql, [categoryId]);
 
-        const processedRows = rows.map(row => ({
-            ...row,
-            display_url: row.image
-                ? (row.image.startsWith("data:") ? `/menu-subcategories/image/${row.id}` : row.image)
-                : null
-        }));
+        const processedRows = proxify(rows, req, { field: "image", idField: "id", route: "/menu-subcategories" });
 
         res.json({
             status: "success",
@@ -101,7 +75,7 @@ router.get("/category/:categoryId", async (req, res) => {
 });
 
 // ---------------------- CREATE SUBCATEGORY ----------------------
-router.post("/create", upload.single("image"), async (req, res) => {
+router.post("/create", upload.single("image"), cleanRequest, async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     try {
@@ -149,7 +123,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
 });
 
 // ---------------------- UPDATE SUBCATEGORY ----------------------
-router.put("/update/:id", upload.single("image"), async (req, res) => {
+router.put("/update/:id", upload.single("image"), cleanRequest, async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     try {
@@ -170,7 +144,7 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
 
         const imageUrl = req.file
             ? `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-            : existingImage || null;
+            : (await resolveExistingImage(existingImage, { table: "menu_subcategory", column: "image", idColumn: "id", id })) || null;
 
         await connection.query(
             "UPDATE menu_subcategory SET name = ?, status = ?, image = ? WHERE id = ?",

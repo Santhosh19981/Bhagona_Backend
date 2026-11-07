@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const multer = require('multer');
+const { cleanRequest } = require('../lib/validation');
 
 // Memory storage for Base64 image
 const storage = multer.memoryStorage();
@@ -64,7 +65,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add new banner
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', upload.single('image'), cleanRequest, async (req, res) => {
     try {
         const { vendor_id, service_id, title, description, link_url } = req.body;
         let image_url = null;
@@ -86,7 +87,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // Update banner
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', upload.single('image'), cleanRequest, async (req, res) => {
     try {
         const { id } = req.params;
         const { service_id, title, description, link_url } = req.body;

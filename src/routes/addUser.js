@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db'); // promise pool
 const multer = require('multer');
+const { cleanRequest } = require('../lib/validation');
 const path = require('path');
 
 // Multer config for Base64 (memory storage)
@@ -11,7 +12,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', upload.single('image'), cleanRequest, async (req, res) => {
   try {
     console.log('📥 req.body:', JSON.stringify(req.body, null, 2));
     console.log('📥 req.file:', req.file ? `File present: ${req.file.originalname}` : 'No file');
@@ -74,8 +75,8 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive, image, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, age, experience, address, cookingstyle, \`describe\`, role, isapproved, isactive, image, rating, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
 
       values = [
@@ -104,8 +105,8 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       insertQuery = `
         INSERT INTO Users 
-        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname, image, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, mobile, password, experience, address, \`describe\`, services, role, isapproved, isactive, businessname, image, rating, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
 
       values = [

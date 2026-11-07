@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { blobSafe, proxify } = require('../lib/imageProxy');
 
 router.get('/active', async (req, res) => {
   try {
@@ -148,7 +149,7 @@ router.get("/services/:vendor_id", async (req, res) => {
     console.log(`🔍 Fetching services for Vendor ID: ${vendor_id}`);
 
     const [rows] = await pool.query(`
-      SELECT DISTINCT s.service_id, s.name, s.description, s.image_data,
+      SELECT DISTINCT s.service_id, s.name, s.description, ${blobSafe("s.image_data", "image_data")},
              (SELECT COUNT(*) FROM vendor_item_mappings vim 
               JOIN service_items si ON vim.service_item_id = si.service_item_id
               WHERE vim.vendor_id = ? AND si.service_id = s.service_id) as item_count
@@ -161,12 +162,7 @@ router.get("/services/:vendor_id", async (req, res) => {
 
     console.log(`✅ Found ${rows.length} services for Vendor ${vendor_id}`);
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image_data
-        ? (row.image_data.startsWith("data:") ? `/services/image/${row.service_id}` : row.image_data)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image_data", idField: "service_id", route: "/services" });
 
     res.json({
       status: true,
@@ -187,19 +183,14 @@ router.get("/service-items/:vendor_id/:service_id", async (req, res) => {
     const { vendor_id, service_id } = req.params;
 
     const [rows] = await pool.query(`
-      SELECT si.service_item_id, si.name, si.description, si.price, si.quantity_type, si.image_url,
+      SELECT si.service_item_id, si.name, si.description, si.price, si.quantity_type, ${blobSafe("si.image_url", "image_url")},
              CASE WHEN vim.vendor_id IS NOT NULL THEN 1 ELSE 0 END as is_selected
       FROM service_items si
       LEFT JOIN vendor_item_mappings vim ON si.service_item_id = vim.service_item_id AND vim.vendor_id = ?
       WHERE si.service_id = ? AND si.status = 'active'
     `, [vendor_id, service_id]);
 
-    const processedRows = rows.map(row => ({
-      ...row,
-      display_url: row.image_url
-        ? (row.image_url.startsWith("data:") ? `/service-items/image/${row.service_item_id}` : row.image_url)
-        : null
-    }));
+    const processedRows = proxify(rows, req, { field: "image_url", idField: "service_item_id", route: "/service-items" });
 
     res.json({
       status: true,
