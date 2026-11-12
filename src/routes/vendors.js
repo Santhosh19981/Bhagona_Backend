@@ -77,18 +77,19 @@ router.post("/items/sync", async (req, res) => {
 
     await connection.beginTransaction();
 
-    // 1. Remove old mappings for this vendor + service combination
-    // We join with service_items to ensure we only remove items belonging to this specific service
+    // 1. Remove mappings for this vendor + service that are no longer selected
+    //    (kept rows keep their vendor price_override)
+    const keepIds = item_ids.length > 0 ? item_ids : [0];
     await connection.query(`
       DELETE vim FROM vendor_item_mappings vim
       INNER JOIN service_items si ON vim.service_item_id = si.service_item_id
-      WHERE vim.vendor_id = ? AND si.service_id = ?
-    `, [vendor_id, service_id]);
+      WHERE vim.vendor_id = ? AND si.service_id = ? AND vim.service_item_id NOT IN (?)
+    `, [vendor_id, service_id, keepIds]);
 
-    // 2. Insert new mappings
+    // 2. Add newly selected items
     if (item_ids.length > 0) {
       const values = item_ids.map(iid => [vendor_id, iid]);
-      await connection.query("INSERT INTO vendor_item_mappings (vendor_id, service_item_id) VALUES ?", [values]);
+      await connection.query("INSERT IGNORE INTO vendor_item_mappings (vendor_id, service_item_id) VALUES ?", [values]);
     }
 
     await connection.commit();
@@ -150,15 +151,20 @@ router.get("/services/:vendor_id", async (req, res) => {
 
     const [rows] = await pool.query(`
       SELECT DISTINCT s.service_id, s.name, s.description, ${blobSafe("s.image_data", "image_data")},
-             (SELECT COUNT(*) FROM vendor_item_mappings vim 
-              JOIN service_items si ON vim.service_item_id = si.service_item_id
-              WHERE vim.vendor_id = ? AND si.service_id = s.service_id) as item_count
+             CASE WHEN LOWER(s.name) LIKE '%cater%'
+                  THEN (SELECT COUNT(*) FROM vendor_menu_item_mappings vm
+                        WHERE vm.vendor_id = ? AND vm.status = 'active')
+                  ELSE (SELECT COUNT(*) FROM vendor_item_mappings vim
+                        JOIN service_items si ON vim.service_item_id = si.service_item_id
+                        WHERE vim.vendor_id = ? AND si.service_id = s.service_id)
+             END as item_count,
+             CASE WHEN LOWER(s.name) LIKE '%cater%' THEN 'menu' ELSE 'service' END as catalog_kind
       FROM services s
       LEFT JOIN Users u ON u.user_id = ?
       LEFT JOIN vendor_service_mappings vsm ON vsm.service_id = s.service_id AND vsm.vendor_id = ?
       WHERE FIND_IN_SET(s.service_id, REPLACE(u.services, ' ', '')) 
          OR vsm.vendor_id IS NOT NULL
-    `, [vendor_id, vendor_id, vendor_id]);
+    `, [vendor_id, vendor_id, vendor_id, vendor_id]);
 
     console.log(`✅ Found ${rows.length} services for Vendor ${vendor_id}`);
 

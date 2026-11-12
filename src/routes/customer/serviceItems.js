@@ -29,22 +29,28 @@ router.get("/:serviceId", async (req, res) => {
             vendor_id = null;
         }
 
-        let itemSql = `
-            SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type, si.price, si.status, ${blobSafe("si.image_url", "image_url")} 
-            FROM service_items si
-        `;
+        let itemSql;
         let itemParams = [serviceId];
 
         if (vendor_id) {
-            itemSql += `
+            // Only the items this vendor offers, at the vendor's price (falls back to the platform price).
+            itemSql = `
+                SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type,
+                       COALESCE(vim.price_override, si.price) AS price, si.price AS base_price,
+                       si.status, ${blobSafe("si.image_url", "image_url")}
+                FROM service_items si
                 INNER JOIN vendor_item_mappings vim ON si.service_item_id = vim.service_item_id
                 WHERE si.service_id = ? AND si.status = 'active' AND vim.vendor_id = ?
+                  AND (vim.status IS NULL OR vim.status = 'active')
                 ORDER BY si.service_item_id ASC
             `;
             itemParams.push(vendor_id);
         } else {
-            itemSql += `
-                WHERE si.service_id = ? AND si.status = 'active' 
+            itemSql = `
+                SELECT si.service_item_id, si.service_id, si.name, si.description, si.quantity_type,
+                       si.price, si.price AS base_price, si.status, ${blobSafe("si.image_url", "image_url")}
+                FROM service_items si
+                WHERE si.service_id = ? AND si.status = 'active'
                 ORDER BY si.service_item_id ASC
             `;
         }

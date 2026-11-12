@@ -27,6 +27,8 @@ const customerPartnersRouter = require("./routes/customer/partners");
 const customerServiceItemsRouter = require("./routes/customer/serviceItems");
 const bannersRouter = require("./routes/banners");
 const offersRouter = require("./routes/offers");
+const discountsRouter = require("./routes/discounts");
+const vendorCatalogRouter = require("./routes/vendor_catalog");
 const razorpayRouter = require("./routes/razorpay_payments");
 const vendorAccountsRouter = require("./routes/vendor_accounts");
 const dashboardRouter = require("./routes/dashboard");
@@ -128,6 +130,8 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/banners", bannersRouter);
 app.use("/offers", offersRouter);
+app.use("/discounts", discountsRouter);
+app.use("/vendor-catalog", vendorCatalogRouter);
 app.use("/users", usersRouter);
 app.use("/addUser", addUserRouter);
 app.use("/events", eventsRouter);

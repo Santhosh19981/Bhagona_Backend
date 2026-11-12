@@ -74,7 +74,17 @@ router.post('/verify-payment', async (req, res) => {
             
             // Get order details to calculate split
             const [orderRows] = await db.query('SELECT order_value FROM orders WHERE booking_id = ?', [booking_id]);
-            const orderValue = orderRows[0]?.order_value || 0;
+            const grossOrderValue = Number(orderRows[0]?.order_value) || 0;
+
+            // Volume discount (guest count / bill amount rules) reduces the payout base.
+            let discountAmount = 0;
+            try {
+                const [discountRows] = await db.query('SELECT discount_amount FROM booking_discounts WHERE booking_id = ?', [booking_id]);
+                discountAmount = Number(discountRows[0]?.discount_amount) || 0;
+            } catch (e) {
+                // booking_discounts may not exist yet on an older database; treat as no discount
+            }
+            const orderValue = Math.max(grossOrderValue - discountAmount, 0);
             const adminCommission = orderValue * commissionRate;
             const vendorAmount = orderValue - adminCommission;
 

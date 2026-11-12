@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 const { blobSafe, proxify } = require("../../lib/imageProxy");
+const { priceMenuForVendors } = require("../vendor_catalog");
+const { getActiveRules, evaluateOrder } = require("../discounts");
 
 // -------------------------------------------------------------
 // GET PUBLIC CHEFS (role = 2, active & approved)
@@ -74,6 +76,36 @@ router.get("/vendors", async (req, res) => {
         console.log(`✅ Found ${rows.length} vendors`);
 
         const processedRows = proxify(rows, req, { field: "image", idField: "user_id", route: "/profiles" });
+
+        // Catering: price the customer's selected menu (menu_item_ids=1,2,3) for each vendor.
+        const menuItemIds = String(req.query.menu_item_ids || "")
+            .split(",")
+            .map((v) => Number(v.trim()))
+            .filter((n) => Number.isInteger(n) && n > 0);
+        if (menuItemIds.length && processedRows.length) {
+            const vendorIds = processedRows.map((r) => Number(r.user_id));
+            const pricing = await priceMenuForVendors(vendorIds, [...new Set(menuItemIds)]);
+            processedRows.forEach((r) => { r.menu_pricing = pricing.get(Number(r.user_id)) || null; });
+
+            // With a guest count, price the whole order and apply this vendor's discount rules.
+            const guestCount = Math.floor(Number(req.query.guest_count) || 0);
+            if (guestCount > 0) {
+                const rules = await getActiveRules(vendorIds);
+                processedRows.forEach((r) => {
+                    const mp = r.menu_pricing;
+                    if (!mp || mp.missing.length > 0 || !(mp.per_plate_total > 0)) return; // can't take this order
+                    const vid = Number(r.user_id);
+                    const vendorRules = rules.filter((x) => x.vendor_id === null || x.vendor_id === vid);
+                    const subtotal = Math.round(mp.per_plate_total * guestCount * 100) / 100;
+                    r.pricing_summary = {
+                        per_plate: mp.per_plate_total,
+                        guests: guestCount,
+                        subtotal,
+                        ...evaluateOrder(vendorRules, { guestCount, billAmount: subtotal, perPlate: mp.per_plate_total }),
+                    };
+                });
+            }
+        }
 
         return res.json({ status: true, data: processedRows });
     } catch (err) {
